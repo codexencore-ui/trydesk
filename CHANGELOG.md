@@ -12,7 +12,7 @@ section fails the job on purpose.
 
 ## [Unreleased]
 
-## [1.3.8]
+## [1.3.9]
 
 The first stage of "the remote keeps working when the host's monitor is off": TryDesk now bundles a virtual monitor.
 
@@ -39,5 +39,5 @@ The first stage of "the remote keeps working when the host's monitor is off": Tr
 - The driver needs the **Microsoft Visual C++ Redistributable**.
 - A kernel-level display driver may be flagged by antivirus/EDR on some PCs.
 
-[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.3.8...HEAD
-[1.3.8]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.8
+[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.3.9...HEAD
+[1.3.9]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.9

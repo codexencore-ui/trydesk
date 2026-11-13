@@ -12,6 +12,18 @@ the body of the GitHub Release, so a release's notes always come from this file.
 
 ## [Unreleased]
 
+## [1.3.9]
+
+An iOS build was produced but its notes are not the Release body: the desktop workflow (`release.yml`) writes that
+from the root `CHANGELOG.md`, because 1.3.9's headline change is desktop-only (a bundled virtual monitor). The iOS
+app shares the desktop renderer, so it carries the new Settings strings, but the feature itself is Windows-only and
+nothing in the iOS app changed.
+
+### Notes
+
+- The `.ipa` for 1.3.9 is `TryDesk-1.3.9-ios-unsigned.ipa`, attached to the release. See the release body for the
+  change that matters in this version (the desktop virtual monitor).
+
 ## [1.3.8]
 
 The first iOS release: the TryDesk viewer, a phone that controls a Windows PC.
@@ -54,5 +66,6 @@ The first iOS release: the TryDesk viewer, a phone that controls a Windows PC.
   Developer Program.
 - The iOS app targets iOS 15 and later.
 
-[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.3.8...HEAD
+[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.3.9...HEAD
+[1.3.9]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.9
 [1.3.8]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.8
