@@ -12,6 +12,15 @@ the body of the GitHub Release, so a release's notes always come from this file.
 
 ## [Unreleased]
 
+## [1.4.0]
+
+The iOS app itself is unchanged: 1.4.0 fixes the desktop virtual monitor (60 Hz) and a screen-share error message, all
+Windows-only. The iOS app shares the desktop renderer, so it merely carries the new Settings strings.
+
+### Notes
+
+- The `.ipa` for 1.4.0 is `TryDesk-1.4.0-ios-unsigned.ipa`. See the release body for what changed.
+
 ## [1.3.9]
 
 An iOS build was produced but its notes are not the Release body: the desktop workflow (`release.yml`) writes that
@@ -66,6 +75,7 @@ The first iOS release: the TryDesk viewer, a phone that controls a Windows PC.
   Developer Program.
 - The iOS app targets iOS 15 and later.
 
-[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.3.9...HEAD
+[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/latiefahmad/trydesk/releases/tag/v1.4.0
 [1.3.9]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.9
 [1.3.8]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.8

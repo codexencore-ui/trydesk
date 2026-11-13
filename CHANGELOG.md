@@ -12,6 +12,34 @@ section fails the job on purpose.
 
 ## [Unreleased]
 
+## [1.4.0]
+
+Fixes found while testing the virtual monitor on a PC whose GPU has no video encoder, plus an always-attached installer.
+
+### Fixed
+
+- **The virtual monitor forced 30 Hz**, so the remote looked choppy even though TryDesk asked for 60 fps. Every
+  resolution in the driver's settings now runs at **60 Hz**.
+- **The driver never read TryDesk's settings file.** It only loads `C:\VirtualDisplayDriver\vdd_settings.xml` (the
+  driver's fixed `confpath`, or the `VDDPATH` registry key), never the folder the driver was installed into, so it
+  fell back to its own defaults. The install now drops the file there, records `VDDPATH` and restarts the display;
+  a new **"Perbaiki kehalusan"** button in Settings fixes an already-installed driver the same way.
+- **A failed screen share said only "failed to share screen".** When the Windows service (SYSTEM) cannot capture
+  because the GPU has no hardware H.264 encoder — the service's only path — the viewer now gets that exact reason
+  and the PC here gets a message naming the fix, instead of a silent generic failure.
+- Settings → **Keamanan** → the service note explains the SYSTEM limitation: a PC without a hardware H.264 encoder
+  should run TryDesk without the service.
+
+### Added
+
+- Settings → **Saat menjadi host** → **Monitor virtual** → **Perbaiki kehalusan (60 Hz)**: shown when the driver is
+  installed but its settings file is missing or old, so the fix is one click.
+
+### Notes
+
+- The Windows installers are now attached to the GitHub Release as soon as the build finishes, signed or not, so a
+  release is never left without a downloadable `.exe` (and the in-app updater always has something to point at).
+
 ## [1.3.9]
 
 The first stage of "the remote keeps working when the host's monitor is off": TryDesk now bundles a virtual monitor.
@@ -39,5 +67,6 @@ The first stage of "the remote keeps working when the host's monitor is off": Tr
 - The driver needs the **Microsoft Visual C++ Redistributable**.
 - A kernel-level display driver may be flagged by antivirus/EDR on some PCs.
 
-[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.3.9...HEAD
+[Unreleased]: https://github.com/latiefahmad/trydesk/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/latiefahmad/trydesk/releases/tag/v1.4.0
 [1.3.9]: https://github.com/latiefahmad/trydesk/releases/tag/v1.3.9
