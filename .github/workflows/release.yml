@@ -1,8 +1,13 @@
 # Build the Windows app, sign it with SignPath (free for approved open-source projects),
-# and attach the SIGNED installers to a GitHub Release.
+# and attach the installers to a GitHub Release.
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# ONE-TIME SETUP:
+# WHAT GETS PUBLISHED
+#   The UNSIGNED installers are attached to the Release FIRST, as soon as the build finishes, so a release always has
+#   downloadable .exe files and the in-app updater can point at them. If the SignPath setup below is done, the SIGNED
+#   installers are attached on top (same names, replacing the unsigned ones).
+#
+# ONE-TIME SETUP FOR SIGNING (optional; the release works without it):
 #   1) Push this repo to GitHub and make it PUBLIC.
 #   2) Apply to SignPath Foundation (free OSS signing):  https://signpath.org/apply
 #      — you get an ORGANIZATION ID and a signing POLICY.
@@ -10,9 +15,9 @@
 #      ARTIFACT CONFIGURATION that signs the *.exe files inside the uploaded zip.
 #   4) Add the repo secret  SIGNPATH_API_TOKEN  (GitHub → Settings → Secrets and
 #      variables → Actions → New repository secret).
-#   5) Fill the three slugs marked TODO below to match your SignPath org/project/policy.
-# Until all of that exists, the SignPath step fails — the UNSIGNED build still uploads as
-# a workflow artifact, so nothing is lost while you wait for approval.
+#   5) Fill the three slugs marked TODO below to match your SignPath org/project/policy,
+#      and set the repo variable  SIGNPATH_ENABLED=1  (Settings → Variables → Actions).
+# Until then the signing steps are skipped, and every release still ships the unsigned installers.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Release (build + sign)
@@ -71,8 +76,25 @@ jobs:
           body_path: out/release-notes.md
           generate_release_notes: false      # the body is the changelog, not a commit list
 
-      # ── SignPath signing (only runs once the one-time setup above is done) ──
+      # Attach the UNSIGNED installers to the Release right away. This is the step that makes a release usable (and
+      # the in-app updater able to point at a file) even before SignPath is set up: it must never be skipped because
+      # signing is unavailable. The signed files, if any, are uploaded later and replace these.
+      - name: Attach the UNSIGNED installers to the GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TryDesk-Setup-*.exe
+            dist/TryDesk-Portable.exe
+          fail_on_unmatched_files: true
+          # No body here: the notes were published above and must stay untouched.
+
+      # ── SignPath signing ──
+      # Skipped unless the one-time setup above is done AND the repo variable SIGNPATH_ENABLED is "1". Marking the
+      # two steps conditional (instead of letting an unfilled SignPath step fail the job) keeps every release green
+      # and keeps the unsigned installers attached, while the signed ones are added on top once signing is live.
       - name: Submit signing request to SignPath
+        if: ${{ vars.SIGNPATH_ENABLED == '1' }}
         uses: signpath/github-action-submit-signing-request@v1
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -85,8 +107,10 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: "dist-signed"
 
+      # Replace the unsigned installers with the SIGNED ones. Runs only after a real signing request, so a release
+      # without signing keeps the files attached by the step above.
       - name: Publish SIGNED installers to the GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: ${{ vars.SIGNPATH_ENABLED == '1' && startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
           files: dist-signed/*.exe
