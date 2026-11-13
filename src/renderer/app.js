@@ -158,6 +158,8 @@ const statusDot = $("#status-dot");
 const statusText = $("#status-text");
 const remoteIdInput = $("#remote-id");
 const remotePasswordInput = $("#remote-password");
+const rememberPwInput = $("#remember-pw");
+const cpwRememberInput = $("#cpw-remember");
 const accessPassword = $("#access-password");
 const overlaySettings = $("#overlay-settings");
 const qualityPanel = $("#quality-panel");
@@ -199,6 +201,31 @@ const store = {
   set(key, val) { try { val == null ? localStorage.removeItem(key) : localStorage.setItem(key, val); } catch {} },
 };
 
+// ─── Remembered device passwords ──────────────────────────
+// The access password of a device the user chose to remember, so it doesn't have to be retyped. The phone stores
+// it through a native plugin — the iOS Keychain, the Android Keystore (mobile-shim.js savedPassword*) — and never
+// in localStorage. The desktop (Electron) has no such bridge, so it falls back to the store here. Keys are
+// "pw:<deviceId>"; the device is a 9-digit ID or a "lan:<address>".
+const hasSavedPasswordBridge = () => !!(window.electronAPI && window.electronAPI.savedPasswordGet);
+const savedPassword = {
+  async get(id) {
+    if (hasSavedPasswordBridge()) { try { return (await window.electronAPI.savedPasswordGet(id)) || null; } catch { return null; } }
+    return store.get("pw:" + id);
+  },
+  async set(id, pw) {
+    if (hasSavedPasswordBridge()) { try { return !!(await window.electronAPI.savedPasswordSet(id, pw)); } catch { return false; } }
+    store.set("pw:" + id, pw); return true;
+  },
+  async remove(id) {
+    if (hasSavedPasswordBridge()) { try { await window.electronAPI.savedPasswordRemove(id); } catch {} return; }
+    store.set("pw:" + id, null);
+  },
+  async clear() {
+    if (hasSavedPasswordBridge()) { try { await window.electronAPI.savedPasswordClear(); } catch {} return; }
+    try { for (const k of Object.keys(localStorage)) if (k.startsWith("pw:")) localStorage.removeItem(k); } catch {}
+  },
+};
+
 // ─── i18n (ID / EN) ───────────────────────────────────────
 let lang = "id";
 const I18N = {
@@ -206,6 +233,9 @@ const I18N = {
     // dynamic / toasts
     fav_added: "Ditambahkan ke favorit", fav_removed: "Dihapus dari favorit",
     fav_add_tip: "Tambah ke favorit", fav_remove_tip: "Hapus dari favorit",
+    remember_pw: "Ingat password untuk perangkat ini",
+    pw_saved: "Password disimpan untuk perangkat ini", pw_removed: "Password tersimpan dihapus",
+    edit_device: "Edit perangkat",
     connecting_server: "Menghubungkan ke server...", connected_server: "Terhubung ke server",
     server_disconnected: "Terputus dari server", id_copied: "ID disalin!",
     reconnecting: "Koneksi terputus, mencoba sambung ulang...", reconnect_failed: "Gagal menyambung ulang",
@@ -241,6 +271,9 @@ const I18N = {
     // dynamic / toasts
     fav_added: "Added to favorites", fav_removed: "Removed from favorites",
     fav_add_tip: "Add to favorites", fav_remove_tip: "Remove from favorites",
+    remember_pw: "Remember the password for this device",
+    pw_saved: "Password saved for this device", pw_removed: "Saved password removed",
+    edit_device: "Edit device",
     connecting_server: "Connecting to server...", connected_server: "Connected to server",
     server_disconnected: "Disconnected from server", id_copied: "ID copied!",
     reconnecting: "Connection lost, reconnecting...", reconnect_failed: "Reconnect failed",
@@ -517,8 +550,24 @@ const TEXT_EN = {
   "Masih ada sesi remote yang terbuka.": "There are still remote sessions open.",
   "Menutup TryDesk memutus semua sesi, dan PC ini tidak bisa dihubungi sampai TryDesk dibuka lagi.": "Closing TryDesk ends every session, and this PC can't be reached until TryDesk is opened again.",
   "Kembali ke sesi": "Back to session",
-  "Atau tunggu pemilik PC menekan Terima. Password tidak disimpan.": "Or wait for the PC's owner to click Accept. The password isn't saved.",
-  "Lewat IP, hanya password yang bisa membuka akses. Password tidak disimpan.": "Over IP, only the password opens access. The password isn't saved.",
+  "Atau tunggu pemilik PC menekan Terima.": "Or wait for the PC's owner to click Accept.",
+  "Lewat IP, hanya password yang bisa membuka akses.": "Over IP, only the password opens access.",
+  "Ingat password untuk perangkat ini": "Remember the password for this device",
+  "Edit perangkat": "Edit device",
+  "Nama": "Name",
+  "Nama untuk perangkat ini": "A name for this device",
+  "Hanya tersimpan di perangkat Anda, sebagai label pada kartu perangkat.": "Kept only on your device, as a label on the device card.",
+  "Password akses tersimpan": "Saved access password",
+  "Belum ada password tersimpan": "No password saved yet",
+  "Belum ada password tersimpan.": "No password saved yet.",
+  "Password tersimpan untuk perangkat ini; dipakai otomatis saat menyambung.": "Password saved for this device; used automatically when connecting.",
+  "Simpan password": "Save password",
+  "Hapus password": "Remove password",
+  "Lainnya": "More",
+  "Hapus perangkat dari daftar": "Remove device from the list",
+  "Isi password dulu": "Type a password first",
+  "Gagal menyimpan password": "Couldn't save the password",
+  "Perangkat dihapus dari daftar": "Device removed from the list",
   "Masukkan password": "Enter password", "ID TryDesk": "TryDesk ID", "Jaringan lokal": "Local network",
   "Menunggu password atau persetujuan pemilik PC": "Waiting for the password or the owner's approval", "Memeriksa password…": "Checking password…",
   "Peminta tidak memasukkan password akses. Ia masih bisa mengetiknya, bila benar, koneksi langsung diterima.": "The requester did not enter the access password. They can still type it, if it is right, the connection is accepted at once.",
@@ -1007,6 +1056,7 @@ const TILE_ICON = {
   star: `<path d="${STAR_PATH}"/>`,
   rename: `<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>`,
   remove: `<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>`,   /* a bin, as drawn in the concept */
+  settings: `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>`,
   more: `<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>`,
 };
 const tileSvg = (inner, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
@@ -1156,6 +1206,7 @@ function openTileMenu(id, tile, { fav = false, x = 0, y = 0, alignRight = false 
     "-",
     [starred ? t("fav_remove_tip") : t("fav_add_tip"), TILE_ICON.star, () => toggleFavorite(id)],
     ["Ganti nama", TILE_ICON.rename, () => startRename(id, tile)],
+    [t("edit_device"), TILE_ICON.settings, () => openEditDevice(id)],
     !fav && "-",
     !fav && ["Hapus dari riwayat", TILE_ICON.remove, () => removeRecent(id), true],
   ].filter(Boolean);
@@ -1238,6 +1289,76 @@ function startRename(id, tile) {
   inp.addEventListener("click", (e) => e.stopPropagation());
   inp.addEventListener("pointerdown", (e) => e.stopPropagation());
 }
+
+// ─── Edit device sheet ────────────────────────────────────
+// One place to change what a saved PC is: its name, the remembered access password, favorite, remove. Opened from a
+// tile's ⋮ menu ("Edit perangkat"). The password box shows the saved password (masked, with an eye) so the user can
+// see it is there; "Simpan password" writes it to the secure store, "Hapus password" forgets the device.
+let editDeviceId = null;
+function openEditDevice(id) {
+  closeTileMenu();
+  editDeviceId = id;
+  const $o = $("#overlay-edit-device");
+  const name = peerName(id), lanAddr = /^lan:/.test(id) ? id.slice(4) : "";
+  const shown = lanAddr ? `${lanAddr} · LAN` : fmtId(id);
+  $("#editdev-peer-name").textContent = name || shown;
+  $("#editdev-peer-id").textContent = name ? shown : "";
+  $("#editdev-name").value = name;
+  const pwField = $("#editdev-pw");
+  pwField.value = ""; pwField.type = "password";
+  savedPassword.get(id).then((pw) => {
+    if (editDeviceId !== id) return;
+    pwField.value = pw || "";
+    $("#editdev-pw-note").textContent = pw
+      ? "Password tersimpan untuk perangkat ini; dipakai otomatis saat menyambung."
+      : "Belum ada password tersimpan.";
+    $("#editdev-pw-remove").disabled = !pw;
+  }).catch(() => { $("#editdev-pw-note").textContent = "Belum ada password tersimpan."; $("#editdev-pw-remove").disabled = true; });
+  const tb = $("#editdev-thumb"), thumb = getThumbs()[id];
+  tb.classList.toggle("has-thumb", !!thumb);
+  if (thumb) { const img = new Image(); img.alt = ""; img.draggable = false; img.src = thumb; tb.replaceChildren(img); }
+  else tb.innerHTML = MONITOR_SVG;
+  $("#editdev-fav-text").textContent = isFavorite(id) ? t("fav_remove_tip") : t("fav_add_tip");
+  $o.classList.remove("hidden");
+  setTimeout(() => $("#editdev-name").focus(), 30);
+}
+function closeEditDevice() { $("#overlay-edit-device").classList.add("hidden"); editDeviceId = null; }
+$("#btn-editdev-close")?.addEventListener("click", closeEditDevice);
+$("#overlay-edit-device")?.addEventListener("pointerdown", (e) => { if (e.target === $("#overlay-edit-device")) closeEditDevice(); });
+$("#editdev-pw-eye")?.addEventListener("click", () => { const f = $("#editdev-pw"); f.type = f.type === "password" ? "text" : "password"; });
+// Saving the name is tied to the field, so typing and closing keeps it (like the desktop's rename).
+$("#editdev-name")?.addEventListener("change", () => { if (editDeviceId) setPeerName(editDeviceId, $("#editdev-name").value); });
+$("#editdev-pw-save")?.addEventListener("click", async () => {
+  const id = editDeviceId, pw = $("#editdev-pw").value;
+  if (!id) return;
+  if (!pw) return showToast("Isi password dulu");
+  const ok = await savedPassword.set(id, pw);
+  showToast(ok ? t("pw_saved") : "Gagal menyimpan password");
+  if (ok) { $("#editdev-pw-note").textContent = "Password tersimpan untuk perangkat ini; dipakai otomatis saat menyambung."; $("#editdev-pw-remove").disabled = false; if (rememberPwInput) rememberPwInput.checked = true; }
+});
+$("#editdev-pw-remove")?.addEventListener("click", async () => {
+  const id = editDeviceId;
+  if (!id) return;
+  await savedPassword.remove(id);
+  $("#editdev-pw").value = "";
+  $("#editdev-pw-note").textContent = "Belum ada password tersimpan.";
+  $("#editdev-pw-remove").disabled = true;
+  showToast(t("pw_removed"));
+});
+$("#editdev-fav")?.addEventListener("click", () => {
+  if (!editDeviceId) return;
+  toggleFavorite(editDeviceId);
+  $("#editdev-fav-text").textContent = isFavorite(editDeviceId) ? t("fav_remove_tip") : t("fav_add_tip");
+});
+$("#editdev-remove")?.addEventListener("click", async () => {
+  const id = editDeviceId;
+  if (!id) return;
+  await savedPassword.remove(id);
+  removeRecent(id);
+  if (isFavorite(id)) toggleFavorite(id);
+  closeEditDevice();
+  showToast("Perangkat dihapus dari daftar");
+});
 
 function getFavorites() { try { return JSON.parse(store.get("favorites") || "[]"); } catch { return []; } }
 function isFavorite(id) { return getFavorites().some((f) => f.id === id); }
@@ -1574,6 +1695,7 @@ $("#btn-lan-help-ok").addEventListener("click", closeLanHelp);
 $("#btn-lan-help-settings").addEventListener("click", () => { closeLanHelp(); openSettingsAt("tab-connection", "#setting-lan"); });
 $("#overlay-lan-help").addEventListener("click", (e) => { if (e.target.id === "overlay-lan-help") closeLanHelp(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#overlay-lan-help").classList.contains("hidden")) closeLanHelp(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && editDeviceId) closeEditDevice(); });
 async function applyLanHost(on, boot) {
   const note = $("#setting-lan-addr");
   if (!window.electronAPI.lanHost || viewerOnlyDesktop() || window.TD_MOBILE) { lanHostOn = false; return; }
@@ -1635,6 +1757,8 @@ async function onSignal(msg) {
       const salt = String(msg.salt || ""), nonce = String(msg.nonce || "");
       s.pwSalt = salt;
       s.pwRound = (s.pwRound || 0) + 1;
+      // A remembered password may still be being fetched from the Keychain / Keystore: wait for it before deciding.
+      if (s.savedPwPending) { try { await s.savedPwPending; } catch {} }
       try {
         let key = null, how = "empty";
         if (s.pendingPassword) { key = await deriveKeyHex(s.pendingPassword, salt); how = "typed"; s.lanKey = key; }
@@ -1828,6 +1952,19 @@ function initiateConnection(target, password, { background = false } = {}) {
   // Hold the typed password locally for the challenge/response, it is NEVER sent to the server. savedPassword
   // stays with the tab so an auto-reconnect can answer the host's challenge again.
   sess.pendingPassword = sess.savedPassword = (fromUi ? remotePasswordInput.value : password) || "";
+  // "Remember the password for this device" was ticked and a password was typed: keep it (Keychain / Keystore on a
+  // phone). Unticked (the default) removes any earlier one, so unticking is how you forget a device.
+  if (fromUi) {
+    const typed = remotePasswordInput.value;
+    if (rememberPwInput && rememberPwInput.checked && typed) savedPassword.set(targetId, typed).then(() => showToast(t("pw_saved"))).catch(() => {});
+    else if (rememberPwInput && !rememberPwInput.checked) savedPassword.remove(targetId).catch(() => {});
+  }
+  // Nothing typed: remember this device's password, if the user saved one (the host can still be opened without
+  // it, by clicking Accept). Resolved asynchronously, so the challenge handler awaits it (s.savedPwPending).
+  // It also goes into savedPassword (the durable copy), so an auto-reconnect answers the next challenge too.
+  sess.savedPwPending = sess.pendingPassword ? Promise.resolve() : savedPassword.get(targetId).then((pw) => {
+    if (pw && sessions.get(targetId) === sess && !sess.pc && !sess.pendingPassword) { sess.pendingPassword = pw; sess.savedPassword = pw; }
+  }).catch(() => {});
   // The typed password belongs to THIS PC only, clear it so the next tile or ID doesn't silently reuse it
   // (a wrong answer there counts toward that PC's lock-out).
   if (fromUi) remotePasswordInput.value = "";
@@ -1862,8 +1999,8 @@ function initiateConnection(target, password, { background = false } = {}) {
 // password, it doesn't by the owner's choice, so it says so).
 const PW_PROMPT_TEXT = { empty: "", typed: "Password salah. Coba lagi." };
 const PW_WAIT = {
-  id: "Atau tunggu pemilik PC menekan Terima. Password tidak disimpan.",
-  lan: "Lewat IP, hanya password yang bisa membuka akses. Password tidak disimpan.",
+  id: "Atau tunggu pemilik PC menekan Terima.",
+  lan: "Lewat IP, hanya password yang bisa membuka akses.",
 };
 function showPwPrompt(s, nonce, last) {
   s.pwPrompt = { nonce, last: PW_PROMPT_TEXT[last] ? last : "empty" };
@@ -1890,6 +2027,8 @@ function renderPwPrompt() {
   $("#connect-pw-wait-text").textContent = lan ? PW_WAIT.lan : PW_WAIT.id;
   $("#connect-pw-go").disabled = false;
   $("#connecting-text").textContent = lan ? "Menunggu password akses" : "Menunggu password atau persetujuan pemilik PC";
+  // A device that is already remembered has the box ticked, so re-entering keeps it saved without a second thought.
+  if (cpwRememberInput) savedPassword.get(s.peerId).then((pw) => { if (p === (active && active.pwPrompt)) cpwRememberInput.checked = !!pw; }).catch(() => {});
   const inp = $("#connect-pw-input");
   inp.value = "";
   inp.focus();
@@ -1907,6 +2046,7 @@ $("#connect-pw").addEventListener("submit", async (e) => {
     s.pwLast = "typed";
     s.savedPassword = pw;   // an auto-reconnect answers the next challenge with it
     s.lanKey = key;         // a LAN session signs its offers with it
+    if (cpwRememberInput && cpwRememberInput.checked) savedPassword.set(s.peerId, pw).then(() => showToast(t("pw_saved"))).catch(() => {});
     sendSignal({ type: "connection-response", targetId: s.peerId, response: await answerWithKey(key, p.nonce) });
   } catch {}
   renderPwPrompt();
@@ -5624,7 +5764,7 @@ async function resetSettings() {
   // Credentials are not "settings": wiping the access password would silently make an unattended PC ask
   // for Accept on every connection.
   const KEEP = new Set(["myId", "myToken", "favorites", "recent", "recentConnections", "accessPasswordHash", "peerNames", "peerThumbs", "lang"]);
-  try { for (const k of Object.keys(localStorage)) if (!KEEP.has(k)) localStorage.removeItem(k); } catch {}
+  try { for (const k of Object.keys(localStorage)) if (!KEEP.has(k) && !k.startsWith("pw:")) localStorage.removeItem(k); } catch {}
   try { await window.electronAPI.setLoginItem(false); await window.electronAPI.setHwAccel(true); } catch {}
   location.reload();
 }

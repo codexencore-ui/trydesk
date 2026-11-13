@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TdScreenPlugin.class);   // full screen + landscape during a session (mobile.js)
         registerPlugin(TdLanPlugin.class);      // connect by IP on the same network (mobile-shim.js lan*)
         registerPlugin(TdFilePlugin.class);     // screenshots and recordings into the gallery (mobile-shim.js file*)
+        registerPlugin(TdStorePlugin.class);    // remembered device passwords, Keystore-encrypted (mobile-shim.js savedPassword*)
         super.onCreate(savedInstanceState);
     }
 }

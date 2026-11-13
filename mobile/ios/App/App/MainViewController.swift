@@ -30,5 +30,6 @@ open class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(TdScreenPlugin())
         bridge?.registerPluginInstance(TdLanPlugin())
         bridge?.registerPluginInstance(TdFilePlugin())
+        bridge?.registerPluginInstance(TdStorePlugin())
     }
 }

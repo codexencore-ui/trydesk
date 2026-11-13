@@ -804,6 +804,7 @@
     if (open("#quality-panel")) { $("#btn-quality-close").click(); return true; }
     if (open("#chat-panel")) { closeChat(); return true; }
     if (open("#overlay-settings")) { toggleSettings(); return true; }
+    if (open("#overlay-edit-device")) { $("#btn-editdev-close").click(); return true; }
     if (open("#overlay-lan-help")) { $("#btn-lan-help-ok").click(); return true; }
     if (document.activeElement === kbd) { kbd.blur(); return true; }
     if (!keysBar.classList.contains("hidden")) { $("#m-btn-keys").click(); return true; }

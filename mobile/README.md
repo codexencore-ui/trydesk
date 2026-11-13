@@ -27,6 +27,18 @@ click will land is **off by default** (it sits over the remote PC's own cursor) 
 Control Center → **Tampilan** → *Penanda kursor touchpad*; the choice is remembered. **Direct touch** mode never
 draws it — taps land exactly where you touch.
 
+### Remembered device passwords
+
+The viewer can keep the **access password** of a device the user chooses to remember, so they don't retype it. It is
+opt-in (a tick under the password box; off by default) and per device; the device's ⋮ menu → **Edit perangkat** shows,
+replaces or removes a saved password.
+
+On a phone the password never touches `localStorage`: it goes through the native **TdStore** plugin — the **iOS
+Keychain** (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, no iCloud/backup copy) or the **Android Keystore**
+(AES-256/GCM, only the ciphertext is written). On the desktop (Electron) there is no such bridge, so the renderer
+falls back to its own store. The password is only used for the challenge/response to the host — it is never sent to
+the signaling server.
+
 The app is served from a host of ours inside the WebView (`capacitor.config.json` → `server.hostname`), and the
 signaling server accepts that origin besides the desktop app. The scheme differs per platform — Android uses
 `androidScheme: "https"` (`https://app.trydesk.ai.id`), iOS uses `iosScheme: "app"` (`app://app.trydesk.ai.id`)
@@ -66,7 +78,7 @@ with the same key, or Android refuses to install it over the old version.
 
 ## iOS build
 
-The iOS app is the same `www` bundle with Swift twins of the three Android plugins
+The iOS app is the same `www` bundle with Swift twins of the four Android plugins
 (`mobile/ios/App/App/Plugins/Td*Plugin.swift`) and a `MainViewController.swift` that answers the status-bar and
 orientation questions iOS asks the view controller instead of a plugin.
 

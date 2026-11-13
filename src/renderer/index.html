@@ -94,6 +94,61 @@
     </div>
   </div>
 
+  <!-- Edit device: one sheet for the things people change about a saved PC (name, remembered password, favorite,
+       remove). Opened from the tile's ⋮ menu ("Edit perangkat") or a long press. -->
+  <div class="overlay hidden" id="overlay-edit-device">
+    <div class="settings-panel editdev-panel" role="dialog" aria-labelledby="editdev-title">
+      <div class="settings-header">
+        <h3 id="editdev-title">Edit <em>perangkat.</em></h3>
+        <button class="settings-close" id="btn-editdev-close" title="Tutup"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="settings-body editdev-body">
+        <div class="editdev-peer">
+          <div class="tile-preview" id="editdev-thumb" aria-hidden="true"></div>
+          <div class="editdev-peer-text">
+            <span class="editdev-peer-name" id="editdev-peer-name"></span>
+            <span class="editdev-peer-id" id="editdev-peer-id"></span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label for="editdev-name">Nama</label>
+          <input type="text" id="editdev-name" class="input-field" maxlength="40" autocomplete="off" placeholder="Nama untuk perangkat ini">
+          <p class="setting-note">Hanya tersimpan di perangkat Anda, sebagai label pada kartu perangkat.</p>
+        </div>
+
+        <div class="setting-group">
+          <label for="editdev-pw">Password akses tersimpan</label>
+          <div class="password-row">
+            <input type="password" id="editdev-pw" class="input-field" autocomplete="off" placeholder="Belum ada password tersimpan">
+            <button type="button" class="toggle-pass-btn" id="editdev-pw-eye" title="Tampilkan / sembunyikan">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="setting-note" id="editdev-pw-note"></p>
+          <div class="editdev-pw-actions">
+            <button type="button" class="btn-setting-action" id="editdev-pw-save">Simpan password</button>
+            <button type="button" class="btn-setting-action" id="editdev-pw-remove">Hapus password</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label>Lainnya</label>
+          <div class="editdev-actions">
+            <button type="button" class="btn-setting-action" id="editdev-fav">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+              <span id="editdev-fav-text">Tambah ke favorit</span>
+            </button>
+            <button type="button" class="btn-setting-danger" id="editdev-remove">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+              <span>Hapus perangkat dari daftar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings Overlay -->
   <div class="overlay hidden" id="overlay-settings">
     <div class="settings-panel">
@@ -532,6 +587,10 @@
             <label class="desk-sr" for="remote-id" data-i18n="ui_remote_id">ID Remote</label>
             <input type="text" id="remote-id" placeholder="Masukkan ID atau alamat IP" data-i18n-ph="ph_remote_id" class="input-field input-id" maxlength="64" autocomplete="off">
             <input type="password" id="remote-password" placeholder="Password (jika diminta)" data-i18n-ph="ph_password" class="input-field" autocomplete="off">
+            <label class="remember-pw" id="remember-pw-row">
+              <input type="checkbox" id="remember-pw">
+              <span data-i18n="remember_pw">Ingat password untuk perangkat ini</span>
+            </label>
             <div class="connect-actions">
               <button class="btn-connect" id="btn-connect">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
@@ -653,6 +712,10 @@
         </div>
         <label class="cpw-title" for="connect-pw-input">PC ini meminta <em>password.</em></label>
         <input type="password" id="connect-pw-input" class="input-field" autocomplete="off">
+        <label class="remember-pw" id="cpw-remember-row">
+          <input type="checkbox" id="cpw-remember">
+          <span data-i18n="remember_pw">Ingat password untuk perangkat ini</span>
+        </label>
         <p class="connect-pw-msg" id="connect-pw-msg" role="status"></p>
         <button type="submit" class="btn-connect cpw-go" id="connect-pw-go">Masuk</button>
         <p class="cpw-wait" id="connect-pw-wait"><span id="connect-pw-wait-text"></span></p>

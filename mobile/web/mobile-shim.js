@@ -95,6 +95,33 @@
       } catch { return null; }
     },
 
+    // Remembered device passwords: the access password of a device the user chose to keep, so they don't retype it.
+    // Stored through the native TdStore plugin — the iOS Keychain or the Android Keystore — never in localStorage
+    // in a plain form. A build without the plugin (or the desktop) falls back to localStorage.
+    async savedPasswordGet(deviceId) {
+      const key = "pw:" + String(deviceId || "");
+      const S = await storePluginAsync();
+      if (S) { try { const r = await S.get({ key }); return (r && r.value) || null; } catch { return null; } }
+      return lsGet(key);
+    },
+    async savedPasswordSet(deviceId, password) {
+      const key = "pw:" + String(deviceId || "");
+      const S = await storePluginAsync();
+      if (S) { try { await S.set({ key, value: String(password ?? "") }); return true; } catch { return false; } }
+      lsSet(key, String(password ?? "")); return true;
+    },
+    async savedPasswordRemove(deviceId) {
+      const key = "pw:" + String(deviceId || "");
+      const S = await storePluginAsync();
+      if (S) { try { await S.remove({ key }); } catch {} return; }
+      lsDel(key);
+    },
+    async savedPasswordClear() {
+      const S = await storePluginAsync();
+      if (S) { try { const r = await S.list({ prefix: "pw:" }); for (const k of (r && r.keys) || []) await S.remove({ key: k }); } catch {} return; }
+      for (const k of lsKeys()) if (k.startsWith("pw:")) lsDel(k);
+    },
+
     // Connect by IP ("Sambung lewat IP") through the native TdLan plugin — the same calls main.js answers on the
     // desktop. The phone only asks; it never listens (lanHost stays "not available").
     async lanOpen(address) {
@@ -130,6 +157,25 @@
     if (!_lan && Cap) _lan = Cap.registerPlugin ? Cap.registerPlugin("TdLan") : Cap.Plugins && Cap.Plugins.TdLan;
     return _lan || null;
   }
+  let _store = null, _storeProbed = false;
+  // Resolves the native TdStore plugin, or null when this build doesn't have it (an older APK/IPA, the desktop).
+  // Capacitor's registerPlugin returns a proxy even with no native side, so we probe with a real call once and
+  // remember the answer: only a working plugin is returned, everything else falls back to localStorage.
+  async function storePluginAsync() {
+    const Cap = window.Capacitor;
+    if (!Cap || !(Cap.isNativePlatform && Cap.isNativePlatform())) return null;
+    if (_storeProbed) return _store;
+    try {
+      const p = Cap.registerPlugin ? Cap.registerPlugin("TdStore") : Cap.Plugins && Cap.Plugins.TdStore;
+      if (p && typeof p.get === "function") { await p.get({ key: "__probe__" }); _store = p; }
+    } catch { _store = null; }
+    _storeProbed = true;
+    return _store;
+  }
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  const lsDel = (k) => { try { localStorage.removeItem(k); } catch {} };
+  const lsKeys = () => { try { return Object.keys(localStorage); } catch { return []; } };
 
   // Anything not listed: event subscriptions (on…) do nothing, every other call resolves to null —
   // the same "feature off" answer the desktop gives when a native piece is missing.

@@ -20,6 +20,7 @@
 		TD0000032FE993A70072D4E8 /* TdScreenPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = TD0000042FE993A50072D4E8 /* TdScreenPlugin.swift */; };
 		TD0000052FE993A70072D4E8 /* TdLanPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = TD0000062FE993A50072D4E8 /* TdLanPlugin.swift */; };
 		TD0000072FE993A70072D4E8 /* TdFilePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = TD0000082FE993A50072D4E8 /* TdFilePlugin.swift */; };
+		TD00000A2FE993A70072D4E8 /* TdStorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = TD00000B2FE993A50072D4E8 /* TdStorePlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		TD0000042FE993A50072D4E8 /* TdScreenPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TdScreenPlugin.swift; sourceTree = "<group>"; };
 		TD0000062FE993A50072D4E8 /* TdLanPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TdLanPlugin.swift; sourceTree = "<group>"; };
 		TD0000082FE993A50072D4E8 /* TdFilePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TdFilePlugin.swift; sourceTree = "<group>"; };
+		TD00000B2FE993A50072D4E8 /* TdStorePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TdStorePlugin.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -93,6 +95,7 @@
 				TD0000042FE993A50072D4E8 /* TdScreenPlugin.swift */,
 				TD0000062FE993A50072D4E8 /* TdLanPlugin.swift */,
 				TD0000082FE993A50072D4E8 /* TdFilePlugin.swift */,
+				TD00000B2FE993A50072D4E8 /* TdStorePlugin.swift */,
 			);
 			path = Plugins;
 			sourceTree = "<group>";
@@ -184,6 +187,7 @@
 				TD0000032FE993A70072D4E8 /* TdScreenPlugin.swift in Sources */,
 				TD0000052FE993A70072D4E8 /* TdLanPlugin.swift in Sources */,
 				TD0000072FE993A70072D4E8 /* TdFilePlugin.swift in Sources */,
+				TD00000A2FE993A70072D4E8 /* TdStorePlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
