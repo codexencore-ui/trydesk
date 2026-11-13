@@ -13,9 +13,9 @@ open class MainViewController: CAPBridgeViewController {
         return TdScreenPlugin.immersiveActive
     }
 
-    override open var prefersHomeIndicatorAutoHidden: Bool {
-        return TdScreenPlugin.immersiveActive
-    }
+    // NOTE: no `prefersHomeIndicatorAutoHidden` override. UIKit imports it as a plain `public` property (not
+    // `open`), and Swift refuses to override a non-open member from another module — so this overlay cannot drive
+    // it. The home indicator just behaves normally; the status bar and the landscape lock are what matter here.
 
     override open var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         // Portrait by default (the phone UI is portrait-first); TdScreen unlocks landscape during a session.
