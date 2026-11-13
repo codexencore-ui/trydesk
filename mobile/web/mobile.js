@@ -236,6 +236,8 @@
         { divider: true },
         { label: "Mode sentuh: touchpad", active: mode === "touchpad", run: () => setMode("touchpad") },
         { label: "Mode sentuh: sentuh langsung", active: mode === "direct", run: () => setMode("direct") },
+        { divider: true },
+        { label: "Penanda kursor touchpad", active: cursorMark, run: () => { cursorMark = !cursorMark; store.set("m.cursorMark", cursorMark ? "1" : "0"); drawCursor(); } },
       ];
     }
     const items = _ccItems(cat);
@@ -349,6 +351,10 @@
   const cur = { x: 0.5, y: 0.5 };                // touchpad cursor, normalized to the remote screen
   const zoom = { s: 1, tx: 0, ty: 0 };
   const cursorEl = document.createElement("div"); cursorEl.id = "m-cursor"; $("#remote-stage").appendChild(cursorEl);
+  // The red touchpad marker (the ring the app draws over the remote picture). Off by default: most people want to
+  // see the remote PC's own cursor, and the marker sits on top of it. Control Center → Tampilan has the switch; the
+  // setting is remembered (m.cursorMark = "1").
+  let cursorMark = store.get("m.cursorMark") === "1";
 
   function applyZoom() {
     const W = container.clientWidth, H = container.clientHeight;
@@ -362,7 +368,7 @@
   }
   function resetZoom() { zoom.s = 1; zoom.tx = 0; zoom.ty = 0; applyZoom(); }
   function drawCursor() {
-    const b = mode === "touchpad" && !gameOn && contentBox();   // a game draws its own crosshair
+    const b = cursorMark && mode === "touchpad" && !gameOn && contentBox();   // a game draws its own crosshair
     if (!b || !active) { cursorEl.style.display = "none"; return; }
     const cr = container.getBoundingClientRect();
     cursorEl.style.display = "block";

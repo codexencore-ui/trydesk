@@ -22,6 +22,11 @@ two systems differ (haptics, the Back gesture, the aliases and the WebView label
 Typing from the phone uses the host action `{ action: "type", text }` (Unicode `SendInput` in
 `src/input-simulator.js`), so the PC must run TryDesk 1.1.0 or newer.
 
+In **touchpad** mode the app itself draws the pointer: slide to move, tap to click. The red ring that marks where the
+click will land is **off by default** (it sits over the remote PC's own cursor) and can be turned on from
+Control Center → **Tampilan** → *Penanda kursor touchpad*; the choice is remembered. **Direct touch** mode never
+draws it — taps land exactly where you touch.
+
 The app is served from a host of ours inside the WebView (`capacitor.config.json` → `server.hostname`), and the
 signaling server accepts that origin besides the desktop app. The scheme differs per platform — Android uses
 `androidScheme: "https"` (`https://app.trydesk.ai.id`), iOS uses `iosScheme: "app"` (`app://app.trydesk.ai.id`)

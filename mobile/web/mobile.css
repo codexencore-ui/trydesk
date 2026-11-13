@@ -197,7 +197,8 @@ html.td-mobile .remote-canvas-container.fit .video-wrap { will-change: transform
 html.td-mobile .stats-overlay { top: calc(10px + var(--sat)); bottom: auto; left: 10px; min-width: 150px; padding: 8px 11px; font-size: 10.5px; }
 html.td-mobile #game-banner { display: none !important; }
 
-/* Click point in touchpad mode */
+/* Click point in touchpad mode. Off by default (drawCursor hides it unless the user turns the marker on from
+   Control Center → Tampilan → "Penanda kursor touchpad"): the remote PC already shows its own cursor. */
 #m-cursor { position: absolute; left: 0; top: 0; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%;
   border: 2px solid #fff; background: rgba(228, 49, 43, 0.28); box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.45);
   pointer-events: none; z-index: 14; display: none; }
