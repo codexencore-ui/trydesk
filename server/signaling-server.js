@@ -499,14 +499,18 @@ const server = http.createServer((req, res) => {
 
 // Reject cross-site WebSocket hijacking: the desktop app connects with no browser Origin (or a
 // file:// / null origin); a page in someone's browser would send an http(s) Origin — refuse those.
-// The Android app (Capacitor) serves its bundle from https://app.trydesk.ai.id inside the WebView; that
-// host is ours and never serves a real site, so no third-party page can carry this origin.
-const APP_ORIGINS = new Set(["https://app.trydesk.ai.id"]);
+// The phone apps (Capacitor) serve their bundle from a host of ours inside the WebView, and that
+// host never serves a real site, so no third-party page can carry the origin:
+//   Android — androidScheme "https"               -> https://app.trydesk.ai.id
+//   iOS     — iosScheme "app" (see capacitor.config.json) -> app://app.trydesk.ai.id, which the
+//             app:// rule below already covers; the explicit entry is belt-and-braces in case the
+//             scheme is ever changed back to Capacitor's default "capacitor://".
+const APP_ORIGINS = new Set(["https://app.trydesk.ai.id", "app://app.trydesk.ai.id", "capacitor://app.trydesk.ai.id"]);
 const wss = new WebSocketServer({
   server,
   maxPayload: 64 * 1024,
   verifyClient: ({ origin, req }) => {
-    const ok = !origin || origin === "null" || /^(file|app):\/\//i.test(origin) || APP_ORIGINS.has(origin);
+    const ok = !origin || origin === "null" || /^(file|app|capacitor):\/\//i.test(origin) || APP_ORIGINS.has(origin);
     if (!ok) note("bad-origin", { origin, req });
     return ok;
   },

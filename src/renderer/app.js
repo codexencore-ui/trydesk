@@ -1358,7 +1358,10 @@ function connectSignaling() {
 // Desktop builds other than Windows (Linux, macOS) only control other PCs; the phone app has its own layer.
 function viewerOnlyDesktop() { return !window.TD_MOBILE && !!config && !!config.platform && config.platform !== "win32"; }
 function isMacViewer() { return !window.TD_MOBILE && !!config && config.platform === "darwin"; }
-function platformName() { return window.TD_MOBILE ? "android" : config && config.platform === "linux" ? "linux" : config && config.platform === "darwin" ? "macos" : "windows"; }
+function platformName() {
+  if (window.TD_MOBILE) return window.TD_MOBILE.platform === "ios" ? "ios" : "android";
+  return config && config.platform === "linux" ? "linux" : config && config.platform === "darwin" ? "macos" : "windows";
+}
 function sendSignal(data) {
   if (data && isLanId(data.targetId)) { lanSignal(data); return; }
   // Offers and answers of a password session are signed with the password key, on the ID path as on the LAN path:

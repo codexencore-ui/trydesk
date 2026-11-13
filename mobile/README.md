@@ -22,8 +22,12 @@ two systems differ (haptics, the Back gesture, the aliases and the WebView label
 Typing from the phone uses the host action `{ action: "type", text }` (Unicode `SendInput` in
 `src/input-simulator.js`), so the PC must run TryDesk 1.1.0 or newer.
 
-The app is served from `https://app.trydesk.ai.id` inside the WebView (`capacitor.config.json` →
-`server.hostname`); the signaling server accepts exactly that origin besides the desktop app.
+The app is served from a host of ours inside the WebView (`capacitor.config.json` → `server.hostname`), and the
+signaling server accepts that origin besides the desktop app. The scheme differs per platform — Android uses
+`androidScheme: "https"` (`https://app.trydesk.ai.id`), iOS uses `iosScheme: "app"` (`app://app.trydesk.ai.id`)
+because iOS cannot use `http(s)` there. The signaling server's origin check (`server/signaling-server.js`)
+must keep accepting both: a wrong scheme makes every connection fail with a WebSocket handshake 403 that looks
+exactly like the server being offline.
 
 ## Build
 
