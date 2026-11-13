@@ -11,8 +11,8 @@
 #   4) Add the repo secret  SIGNPATH_API_TOKEN  (GitHub → Settings → Secrets and
 #      variables → Actions → New repository secret).
 #   5) Fill the three slugs marked TODO below to match your SignPath org/project/policy.
-# Until all of that exists, the SignPath step just fails — the UNSIGNED build still
-# uploads as a workflow artifact, so nothing is lost while you wait for approval.
+# Until all of that exists, the SignPath step fails — the UNSIGNED build still uploads as
+# a workflow artifact, so nothing is lost while you wait for approval.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Release (build + sign)
