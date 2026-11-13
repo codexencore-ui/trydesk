@@ -460,6 +460,9 @@ const TEXT_EN = {
   "Layanan Windows (akses tanpa pengawasan)": "Windows service (unattended access)",
   "Dengan layanan, PC ini tetap bisa dikontrol setelah restart dan saat sesi RDP diputus (jendela RDP ditutup), seperti AnyDesk. ID PC ini tidak berubah. Tanpa password akses, setiap koneksi tetap meminta Terima. Versi Setup memasangnya otomatis.": "With the service, this PC stays controllable after a restart and while the RDP session is disconnected (RDP window closed), like AnyDesk. This PC's ID doesn't change. Without an access password, every connection still asks for Accept. The Setup version installs it automatically.",
   "Pasang layanan": "Install service", "Hapus layanan": "Remove service",
+  "Monitor virtual (layar tetap jalan walau monitor mati)": "Virtual monitor (screen keeps working even when the monitor is off)",
+  "Bila PC ini tidak punya monitor aktif, layar host berhenti digambar dan remote jadi beku/hitam. Monitor virtual memberi Windows layar maya agar remote tetap jalan — sama seperti TeamViewer. Dipasang otomatis oleh versi Setup.": "When this PC has no active monitor, the host screen stops being drawn and the remote freezes/goes black. A virtual monitor gives Windows a make-believe screen so the remote keeps working — the same way TeamViewer does it. The Setup version installs it automatically.",
+  "Pasang monitor virtual": "Install virtual monitor", "Hapus monitor virtual": "Remove virtual monitor",
   "Layanan terpasang. ID PC ini tetap sama.": "Service installed. This PC's ID stays the same.",
   "UAC dibatalkan, password layanan tidak berubah": "UAC cancelled, the service's password didn't change", "Password layanan gagal diubah": "The service's password couldn't be changed",
   "PC ini memakai layanan TryDesk": "This PC uses the TryDesk service",
@@ -6741,6 +6744,34 @@ $("#btn-service-remove")?.addEventListener("click", async () => {
   await refreshServiceState(); refreshServiceUI();
 });
 refreshServiceUI();
+// Virtual monitor (host side): install/remove the bundled Virtual Display Driver so the remote keeps working when
+// the host has no active monitor. Same shape as the service above; the helper is packaged with the Setup build.
+async function refreshVddUI() {
+  const g = $("#display-vdd-group");
+  if (!g || !window.electronAPI?.displayAvailable) return;
+  let avail = false; try { avail = await window.electronAPI.displayAvailable(); } catch {}
+  if (!avail) { g.style.display = "none"; return; }      // not a packaged Windows build: hide entirely
+  g.style.display = "";
+  let s = null; try { s = await window.electronAPI.displayStatus(); } catch {}
+  const st = $("#display-vdd-state");
+  const installed = !!(s && s.installed);
+  st.textContent = installed ? "✓ Monitor virtual terpasang" : "Monitor virtual belum terpasang.";
+  st.classList.toggle("on", installed);
+  $("#btn-vdd-install").classList.toggle("hidden", installed);
+  $("#btn-vdd-remove").classList.toggle("hidden", !installed);
+}
+$("#btn-vdd-install")?.addEventListener("click", async () => {
+  showToast("Memasang monitor virtual… setujui prompt UAC.");
+  let r; try { r = await window.electronAPI.displayInstall(); } catch { r = { ok: false, error: "gagal" }; }
+  showToast(r.ok ? "Monitor virtual terpasang. Remote tetap jalan walau layar mati." : "Gagal memasang monitor virtual: " + (r.error || "tidak diketahui"));
+  await refreshVddUI();
+});
+$("#btn-vdd-remove")?.addEventListener("click", async () => {
+  let r; try { r = await window.electronAPI.displayRemove(); } catch { r = { ok: false, error: "gagal" }; }
+  showToast(r.ok ? "Monitor virtual dihapus" : "Gagal menghapus monitor virtual: " + (r.error || "tidak diketahui"));
+  refreshVddUI();
+});
+refreshVddUI();
 // Security at a glance (design direction C): three cells with the REAL state, read from the same places the
 // settings below use. Re-rendered whenever one of those changes; a click opens the setting that changes it.
 function renderSecSummary() {

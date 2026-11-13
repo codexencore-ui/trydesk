@@ -437,6 +437,13 @@
               <label class="switch"><input type="checkbox" id="setting-prevent-sleep"><span class="switch-slider"></span></label>
             </div>
           </div>
+          <div class="setting-group" id="display-vdd-group" style="display:none">
+            <label>Monitor virtual (layar tetap jalan walau monitor mati)</label>
+            <div class="setting-note pw-state" id="display-vdd-state"></div>
+            <div class="setting-note">Bila PC ini tidak punya monitor aktif, layar host berhenti digambar dan remote jadi beku/hitam. Monitor virtual memberi Windows layar maya agar remote tetap jalan — sama seperti TeamViewer. Dipasang otomatis oleh versi Setup.</div>
+            <button class="btn-apply" id="btn-vdd-install" style="margin-top:10px">Pasang monitor virtual</button>
+            <button class="btn-setting-danger hidden" id="btn-vdd-remove" style="margin-top:8px">Hapus monitor virtual</button>
+          </div>
         </div>
 
         <div class="settings-tab-content hidden" id="tab-service">

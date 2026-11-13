@@ -47,6 +47,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onFastCapturePacket: (cb) => ipcRenderer.on("fast-capture-packet", (_e, p) => cb(p)),
   onFastCaptureInfo: (cb) => ipcRenderer.on("fast-capture-info", (_e, s) => cb(String(s))),
   onFastCaptureEnded: (cb) => ipcRenderer.on("fast-capture-ended", (_e, d) => cb(d)),
+
+  // Virtual monitor (host side): install/remove/query the bundled Virtual Display Driver, so the remote keeps
+  // working when the host has no active monitor. Windows-only; the renderer hides the feature where it is absent.
+  displayAvailable: () => ipcRenderer.invoke("display-available"),
+  displayStatus: () => ipcRenderer.invoke("display-status"),
+  displayInstall: () => ipcRenderer.invoke("display-install"),
+  displayRemove: () => ipcRenderer.invoke("display-remove"),
   // One TryDesk with the service (see main.js "One TryDesk"): service host side, then the user's app side.
   svcFrontendAlive: () => ipcRenderer.invoke("svc-frontend-alive"),
   svcUiPublish: (ui) => ipcRenderer.send("svc-ui-publish", ui),

@@ -16,5 +16,8 @@ del /q trydesk-capture.obj 2>nul
 rem The TryDesk Windows service (unattended access: lock screen, login screen, after a restart).
 cl /nologo /EHsc /O2 /MT /std:c++20 /W3 /DUNICODE /D_UNICODE trydesk-service.cpp /Fe:trydesk-service.exe /link /SUBSYSTEM:CONSOLE || (popd & exit /b 1)
 del /q trydesk-service.obj 2>nul
+rem The virtual-monitor helper (install/remove the bundled Virtual Display Driver via nefcon).
+cl /nologo /EHsc /O2 /MT /std:c++20 /W3 /DUNICODE /D_UNICODE trydesk-display.cpp /Fe:trydesk-display.exe /link /SUBSYSTEM:CONSOLE || (popd & exit /b 1)
+del /q trydesk-display.obj 2>nul
 popd
-echo built src\native\trydesk-capture.exe and trydesk-service.exe
+echo built src\native\trydesk-capture.exe, trydesk-service.exe and trydesk-display.exe

@@ -1390,6 +1390,53 @@ ipcMain.on("fast-capture-cmd", (e, cmd) => {
   if (line) { try { _fast.proc.stdin.write(line + "\n"); } catch {} }
 });
 ipcMain.on("fast-capture-stop", (e) => { if (fromMain(e)) stopFast(); });
+
+// ─── Virtual monitor (host side): src/native/trydesk-display.exe ───
+// With no monitor active, the GPU stops drawing the desktop and capture gets no frames; the bundled Virtual
+// Display Driver (resources/vdd, MIT) gives Windows a monitor to draw to, which is how TeamViewer solves it.
+// The helper is a separate process (like trydesk-capture.exe) so a driver problem never touches TryDesk. It is
+// only present in packaged Windows builds: without it, the UI simply offers the feature and reports it as
+// unavailable, and nothing else changes.
+const _displayExe = path.join(__dirname, "native", "trydesk-display.exe").replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+// The packaged driver folder: package.json's extraResources drops resources/vdd at <resources>/vdd, and
+// process.resourcesPath is that <resources> dir both packaged and in dev.
+const _vddDir = path.join(process.resourcesPath || path.join(__dirname, "..", "..", "resources"), "vdd");
+function displayAvailable() { return process.platform === "win32" && fs.existsSync(_displayExe); }
+// Run the helper and parse its single JSON line. Never rejects: a failure is a readable { ok:false, error }.
+function runDisplayHelper(action, { elevate = false } = {}) {
+  return new Promise((resolve) => {
+    if (!displayAvailable()) return resolve({ ok: false, error: "helper-tidak-ada" });
+    const args = [action, "--dir", _vddDir];
+    let proc;
+    try {
+      // install/remove need administrator. shell:true through PowerShell's Start-Process -Verb RunAs shows one
+      // UAC prompt (the same way the Windows service is installed); status never elevates.
+      if (elevate && process.platform === "win32") {
+        proc = require("child_process").spawn("powershell.exe",
+          ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+           `$p=Start-Process -FilePath ${JSON.stringify(_displayExe)} -ArgumentList @(${args.map((a) => JSON.stringify(a)).join(",")}) -Verb RunAs -WindowStyle Hidden -PassThru -Wait; exit $p.ExitCode`],
+          { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+      } else {
+        proc = require("child_process").spawn(_displayExe, args, { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+      }
+    } catch (err) { logInfo("display helper spawn failed: " + err.message); return resolve({ ok: false, error: err.message }); }
+    let out = "";
+    proc.stdout.on("data", (c) => { out += c.toString("utf8"); });
+    proc.on("error", (err) => { logInfo("display helper error: " + err.message); resolve({ ok: false, error: err.message }); });
+    proc.on("exit", (code) => {
+      const line = out.trim().split(/\r?\n/).filter(Boolean).pop() || "";
+      let parsed = null;
+      try { parsed = JSON.parse(line); } catch {}
+      if (!parsed) parsed = { ok: code === 0, error: code === 0 ? null : `kode ${code}` };
+      logInfo(`display ${action} -> exit ${code} ${line}`);
+      resolve(parsed);
+    });
+  });
+}
+ipcMain.handle("display-available", () => displayAvailable());
+ipcMain.handle("display-status", () => runDisplayHelper("status"));
+ipcMain.handle("display-install", () => runDisplayHelper("install", { elevate: true }));
+ipcMain.handle("display-remove", () => runDisplayHelper("remove", { elevate: true }));
 // Viewer end of the UDP link: the host told us its key, port and LAN addresses; our receiver sends hellos there and
 // hands whole frames to the renderer. Returns our own port and addresses so the host can send hellos back too.
 ipcMain.handle("fast-udp-recv-start", (e, opts) => {

@@ -19,6 +19,9 @@
     "start": "electron .",
     "server": "node server/signaling-server.js",
     "dev": "concurrently \"npm run server\" \"electron .\"",
+    "native": "node scripts/build-native.mjs",
+    "vdd": "node scripts/fetch-vdd.mjs",
+    "prebuild": "npm run native && npm run vdd",
     "build": "electron-builder --win --x64 --publish never",
     "build:portable": "electron-builder --win portable --x64",
     "build:installer": "electron-builder --win nsis --x64",
@@ -67,6 +70,12 @@
       {
         "from": "TRADEMARK.md",
         "to": "TRADEMARK.TryDesk.md"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "resources/vdd",
+        "to": "vdd"
       }
     ],
     "win": {

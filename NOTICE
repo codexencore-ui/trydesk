@@ -23,6 +23,17 @@ shortened and converted to mono:
   switch.wav - "UI Audio - Switch 35" by Kenney, https://kenney.nl
 Credit is not required by CC0; it is given here anyway.
 
+Bundled third-party software (Windows build), each under the MIT License with its
+full text alongside the files in resources/vdd:
+  Virtual Display Driver  - https://github.com/VirtualDrivers/Virtual-Display-Driver
+                            Copyright (c) 2024 Virtual Display. A virtual monitor
+                            (IddCx) so the remote keeps working when the host has no
+                            active monitor. Files under resources/vdd/driver.
+  nefcon                  - https://github.com/nefarius/nefcon
+                            Copyright (c) 2022-2026 Nefarius Software Solutions e.U.
+                            Device-driver installer used to install the driver above.
+                            Files under resources/vdd/nefcon.
+
 If you redistribute TryDesk or a modified version, keep this NOTICE file, the
 LICENSE file and the copyright notices in the program (including the
 "Made by DrWeabo" credit in the About screen).
