@@ -1,0 +1,138 @@
+# Build the iOS app (viewer) and, on a tag, attach an UNSIGNED .ipa to the GitHub Release.
+#
+# JOBS
+#   validate  — pull requests only. Compiles the iOS app (unsigned) so a broken Swift/plugin change fails the PR
+#               instead of the release. No artifact: it exists to answer "does it still build?".
+#   release   — tags (v*) and manual runs. Does the same build, then packages TryDesk-<version>-ios-unsigned.ipa
+#               and attaches it to the Release (tags only). Waits on validate when both run for the same commit.
+#   summarize — runs after either build (skipped when it failed) so the run ends with one readable line.
+#
+# WHAT THE .ipa IS
+#   TryDesk-<version>-ios-unsigned.ipa is an unsigned IPA (Payload/App.app). It is NOT installable by double-click:
+#   iOS refuses unsigned apps. It is the input for sideloading tools, which re-sign it:
+#     • AltStore / SideStore / Sideloadly  (free Apple ID, 7-day signature)
+#     • Xcode: open ios/App/App.xcodeproj, pick your team, Product → Archive (needs a free/paid Apple ID)
+#   For App Store / TestFlight distribution you need the Apple Developer Program (US$99/year) and a real signing
+#   setup; see mobile/README.md → "iOS signing". Nothing here needs an Apple account: CODE_SIGNING_ALLOWED=NO.
+#
+# WHY macOS / WHY macos-26
+#   Xcode only runs on macOS, and Capacitor 8 needs Xcode 26+. macos-26 ships Xcode 26.x as its DEFAULT; macos-15
+#   still defaults to Xcode 16.4. The www bundle and `cap sync ios` also run on Windows/Linux, but doing it all on
+#   the runner keeps the build reproducible.
+
+name: iOS
+
+on:
+  push:
+    tags: ["v*"]              # a tag like v1.3.8 builds and publishes the .ipa
+  workflow_dispatch: {}       # or run it by hand from the Actions tab
+  pull_request:
+    paths:                    # only when something the iOS build cares about changed
+      - "mobile/**"
+      - "src/renderer/**"
+      - "src/config.json"
+      - "assets/**"
+      - ".github/workflows/ios.yml"
+      - ".github/actions/ios-build/**"
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Pull requests: just prove it compiles ─────────────────────────────────────────────────────────────────────
+  validate:
+    if: github.event_name == 'pull_request'
+    # Capacitor 8 needs Xcode 26+ (and Apple now requires the iOS 26 SDK). macos-26 defaults to Xcode 26.x.
+    runs-on: macos-26
+    timeout-minutes: 45            # a cold SPM resolve + Xcode build; the default 360 would hide a hang
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22         # Capacitor 8 / Capacitor CLI need Node >= 22
+
+      - name: Show Xcode version
+        run: xcodebuild -version        # expect 26.x; the build fails on the Swift PM binary if it is older
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      # Debug builds faster than Release and catches the same compile errors — this job ships nothing.
+      - uses: ./.github/actions/ios-build
+        with:
+          configuration: Debug
+
+  # ── Tags and manual runs: build the .ipa and publish it ──────────────────────────────────────────────────────
+  release:
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: write          # softprops/action-gh-release creates/updates the Release on a tag
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - uses: ./.github/actions/ios-build
+        with:
+          configuration: Release
+
+      - name: Package the unsigned .ipa
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          APP="$(find build/App.xcarchive/Products/Applications -maxdepth 1 -name '*.app' -print -quit)"
+          if [ -z "$APP" ]; then echo "no .app in the archive"; exit 1; fi
+          VERSION=$(node -p "require('../package.json').version")
+          rm -rf out && mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          # ditto keeps the bundle's resource forks and symlinks intact (a plain zip can corrupt them).
+          ditto -c -k --sequesterRsrc --keepParent out/Payload "out/TryDesk-${VERSION}-ios-unsigned.ipa"
+          rm -rf out/Payload
+          echo "IPA: $(ls -lh out/*.ipa)"
+
+      - name: Upload the unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: trydesk-ios-unsigned
+          path: mobile/out/*.ipa
+          if-no-files-found: error
+
+      - name: Attach the IPA to the GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile/out/*.ipa
+          fail_on_unmatched_files: true
+
+  # ── One readable closing line, whichever build ran ───────────────────────────────────────────────────────────
+  summarize:
+    needs: [validate, release]
+    if: always() && !cancelled() && (needs.validate.result == 'success' || needs.release.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "### iOS build OK" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.release.result }}" = "success" ]; then
+            echo "Unsigned IPA packaged as the **trydesk-ios-unsigned** artifact." >> "$GITHUB_STEP_SUMMARY"
+            echo "It needs re-signing before it will install (AltStore / Sideloadly / Xcode) — see mobile/README.md." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "PR check only: the iOS app compiled. No artifact on pull requests." >> "$GITHUB_STEP_SUMMARY"
+          fi

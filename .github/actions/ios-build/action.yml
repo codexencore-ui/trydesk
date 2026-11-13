@@ -1,0 +1,47 @@
+# Shared iOS build steps, used by both jobs in .github/workflows/ios.yml.
+#
+# It only PREPARES and COMPILES the app (www bundle → cap sync → unsigned xcodebuild). It deliberately does not
+# package or upload anything — that is the caller's decision (validate does nothing with it, release builds the
+# .ipa). Keeping it here means the PR check and the release build compile exactly the same thing.
+#
+# Assumes: this repo is already checked out and `mobile/node_modules` is installed (npm ci), and that the caller
+# runs on a macOS runner with Xcode 26+ (macos-26).
+name: Build iOS app (unsigned)
+description: Build mobile/www, sync Capacitor and compile the iOS app unsigned (no packaging)
+
+inputs:
+  configuration:
+    description: Xcode build configuration
+    required: false
+    default: Release
+
+runs:
+  using: composite
+  steps:
+    - name: Build the web bundle for iOS
+      shell: bash
+      working-directory: mobile
+      run: node build-www.mjs --platform=ios    # writes mobile/www (window.TD_MOBILE.platform = "ios")
+
+    - name: Sync Capacitor (copies www + registers plugins)
+      shell: bash
+      working-directory: mobile
+      run: npx cap sync ios
+
+    - name: Compile the app (unsigned archive)
+      shell: bash
+      working-directory: mobile
+      run: |
+        set -euo pipefail
+        xcodebuild \
+          -project ios/App/App.xcodeproj \
+          -scheme App \
+          -configuration "${{ inputs.configuration }}" \
+          -destination 'generic/platform=iOS' \
+          -archivePath build/App.xcarchive \
+          archive \
+          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGN_IDENTITY="" \
+          DEVELOPMENT_TEAM="" \
+          PROVISIONING_PROFILE_SPECIFIER=""
