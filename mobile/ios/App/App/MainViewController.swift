@@ -4,17 +4,20 @@ import Capacitor
 // The app's view controller. Capacitor's default is CAPBridgeViewController; we subclass it only so the status
 // bar and the allowed orientations follow the TdScreen plugin (full screen + landscape while a remote PC is on
 // screen, released when the session ends). The plugin itself cannot answer these — iOS asks the view controller.
-class MainViewController: CAPBridgeViewController {
+//
+// The class and the overrides are `open`: CAPBridgeViewController and UIViewController declare these members
+// `open`, and Swift refuses to override an `open` member from another module at a lower access level.
+open class MainViewController: CAPBridgeViewController {
 
-    override var prefersStatusBarHidden: Bool {
+    override open var prefersStatusBarHidden: Bool {
         return TdScreenPlugin.immersiveActive
     }
 
-    override var prefersHomeIndicatorAutoHidden: Bool {
+    override open var prefersHomeIndicatorAutoHidden: Bool {
         return TdScreenPlugin.immersiveActive
     }
 
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+    override open var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         // Portrait by default (the phone UI is portrait-first); TdScreen unlocks landscape during a session.
         return TdScreenPlugin.landscapeLocked ? .landscape : .portrait
     }
