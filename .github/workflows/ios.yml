@@ -4,8 +4,14 @@
 #   validate  — pull requests only. Compiles the iOS app (unsigned) so a broken Swift/plugin change fails the PR
 #               instead of the release. No artifact: it exists to answer "does it still build?".
 #   release   — tags (v*) and manual runs. Does the same build, then packages TryDesk-<version>-ios-unsigned.ipa
-#               and attaches it to the Release (tags only). Waits on validate when both run for the same commit.
+#               and attaches it to the Release (tags only), with the release notes taken from mobile/CHANGELOG.md.
+#               Waits on validate when both run for the same commit.
 #   summarize — runs after either build (skipped when it failed) so the run ends with one readable line.
+#
+# RELEASE NOTES
+#   mobile/changelog.mjs prints the "## [<version>]" section of mobile/CHANGELOG.md (Keep a Changelog), and that text
+#   becomes the Release body. A tag with no matching section fails the job on purpose. The Windows workflow
+#   (release.yml) only adds files and never touches the body, so the notes always stay the changelog.
 #
 # WHAT THE .ipa IS
 #   TryDesk-<version>-ios-unsigned.ipa is an unsigned IPA (Payload/App.app). It is NOT installable by double-click:
@@ -114,12 +120,22 @@ jobs:
           path: mobile/out/*.ipa
           if-no-files-found: error
 
-      - name: Attach the IPA to the GitHub Release (tags only)
+      # The release notes come from mobile/CHANGELOG.md, one section per version — never GitHub's generated list of
+      # commits. The tag is the version ("v1.3.8" → the "## [1.3.8]" section). A tag with no section fails here, on
+      # purpose: a release without notes is worse than a red build.
+      - name: Write the release notes from the changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: mobile
+        run: node changelog.mjs "${GITHUB_REF_NAME}" > out/release-notes.md
+
+      - name: Attach the IPA and the notes to the GitHub Release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: mobile/out/*.ipa
           fail_on_unmatched_files: true
+          body_path: mobile/out/release-notes.md
+          generate_release_notes: false      # the body is the changelog, not a commit list
 
   # ── One readable closing line, whichever build ran ───────────────────────────────────────────────────────────
   summarize:

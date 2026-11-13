@@ -72,3 +72,6 @@ jobs:
         with:
           files: dist-signed/*.exe
           fail_on_unmatched_files: true
+          # Do NOT add body / body_path / generate_release_notes here: the iOS workflow (ios.yml) writes the release
+          # body from mobile/CHANGELOG.md. Omitting them keeps the existing body, so whichever workflow publishes
+          # first (the two run in parallel on a tag), the notes stay the changelog.
