@@ -1,4 +1,8 @@
 <p align="center">
+  <sub><b>Sumber resmi:</b> <a href="https://trydesk.ai.id/">https://trydesk.ai.id/</a> — satu-satunya situs resmi untuk unduhan, dokumentasi, dan pembaruan.</sub>
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="readme/banner-a-id-dark.png">
     <img src="readme/banner-a-id-light.png" alt="TryDesk. Remote desktop gratis, tanpa akun." width="720">
@@ -6,7 +10,7 @@
 </p>
 
 <p align="center">
-  Kontrol PC Windows dari PC Windows lain, Mac, Linux, atau HP Android.<br>
+  Kontrol PC Windows dari PC Windows lain, Mac, Linux, HP Android, atau iPhone.<br>
   Kedua perangkat tersambung langsung, jadi layar dan file Anda tidak lewat server kami.
 </p>
 
@@ -56,8 +60,9 @@ Layar PC tujuan tampil di jendela Anda, dan mouse serta keyboard Anda bekerja di
 | macOS 13+ | Ya | Tidak |
 | Linux | Ya | Tidak |
 | Android 7.0+ | Ya | Tidak |
+| iPhone / iPad, iOS 15+ | Ya | Tidak |
 
-Unduhan: installer atau .exe portable untuk Windows, .zip untuk Mac Apple Silicon dan Intel, AppImage atau .deb untuk Linux, dan APK 3 MB untuk Android.
+Unduhan: installer atau .exe portable untuk Windows, .zip untuk Mac Apple Silicon dan Intel, AppImage atau .deb untuk Linux, APK 3 MB untuk Android, dan .ipa unsigned untuk iPhone dan iPad.
 
 ## Cara koneksinya bekerja
 
@@ -88,7 +93,7 @@ Ubah frame rate, bitrate, resolusi, dan codec sambil bekerja, dan pindah antar-m
 
 <p><img src="readme/id/android.webp" alt="Aplikasi Android mengontrol PC Windows, dengan toolbar di bawah" width="100%"></p>
 
-Di HP Android, toolbar berisi keyboard, tombol khusus, mode sentuh atau touchpad, dan mode game.
+Di HP Android, toolbar berisi keyboard, tombol khusus, mode sentuh atau touchpad, dan mode game. Aplikasi iPhone dan iPad adalah viewer yang sama, dengan swipe dari tepi sebagai ganti tombol Back.
 
 ## Fitur
 
@@ -133,7 +138,7 @@ npm run dev     # menjalankan server signaling dan aplikasi sekaligus
 
 Aplikasi memakai server signaling publik, kecuali Anda mengganti `signalingServer` di `src/config.json`.
 
-Perintah build untuk Windows, macOS, Linux, Android, dan cara menjalankan server sendiri ada di [README bahasa Inggris](../README.md#run-it-from-source). Panduan lengkap berbahasa Indonesia: [`docs/CARA-PAKAI.md`](CARA-PAKAI.md).
+Perintah build untuk Windows, macOS, Linux, Android, iOS, dan cara menjalankan server sendiri ada di [README bahasa Inggris](../README.md#run-it-from-source). Panduan lengkap berbahasa Indonesia: [`docs/CARA-PAKAI.md`](CARA-PAKAI.md).
 
 ## Ikut berkontribusi
 

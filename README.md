@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  Control a Windows PC from another Windows PC, a Mac, Linux or an Android phone.<br>
+  Control a Windows PC from another Windows PC, a Mac, Linux, an Android phone or an iPhone.<br>
   The two devices connect directly, so your screen and files never pass through our server.
 </p>
 
@@ -60,8 +60,9 @@ The other PC's screen fills your window, and your mouse and keyboard work on it.
 | macOS 13+ | Yes | No |
 | Linux | Yes | No |
 | Android 7.0+ | Yes | No |
+| iPhone / iPad, iOS 15+ | Yes | No |
 
-Downloads: installer or portable .exe for Windows, .zip for Apple Silicon and Intel Macs, AppImage or .deb for Linux, and a 3 MB APK for Android.
+Downloads: installer or portable .exe for Windows, .zip for Apple Silicon and Intel Macs, AppImage or .deb for Linux, a 3 MB APK for Android, and an unsigned .ipa for iPhone and iPad.
 
 ## How a connection works
 
@@ -92,7 +93,7 @@ Change frame rate, bitrate, resolution and codec while you work, and switch betw
 
 <p><img src="docs/readme/en/android.webp" alt="The Android app controlling a Windows PC, with its toolbar at the bottom" width="100%"></p>
 
-On an Android phone, the toolbar gives you the keyboard, special keys, touch or touchpad mode and game mode.
+On an Android phone, the toolbar gives you the keyboard, special keys, touch or touchpad mode and game mode. The iPhone and iPad app is the same viewer, with an edge-swipe instead of a Back button.
 
 ## Features
 
@@ -174,6 +175,39 @@ npm run apk:debug
 </details>
 
 <details>
+<summary><b>Build the iOS app</b></summary>
+
+The iPhone and iPad app is the same web bundle as Android, wrapped by Capacitor 8 and the Swift twins of the
+Android plugins. The Xcode project is committed and uses Swift Package Manager, so it can be prepared on Windows
+with Capacitor 8 — no CocoaPods and no Mac needed to *prepare* it. Only the compile step needs macOS.
+
+You do **not** need a Mac or an Apple Developer account. Push a tag and GitHub Actions builds an **unsigned**
+`.ipa` and attaches it to the Release ([`.github/workflows/ios.yml`](.github/workflows/ios.yml)):
+
+```bash
+git tag -a v1.3.8 -m "TryDesk v1.3.8"
+git push origin v1.3.8        # -> TryDesk-<version>-ios-unsigned.ipa on the Release
+```
+
+The `.ipa` is unsigned, so iOS will not install it by double-click: re-sign it with a free Apple ID through
+AltStore, SideStore or Sideloadly, or open the project in Xcode on a Mac (*Product → Archive*). App Store and
+TestFlight need the Apple Developer Program (US$99/year).
+
+To prepare it by hand (works on Windows; compiling does not):
+
+```bash
+cd mobile
+npm install
+npm run www:ios     # web bundle for iOS (window.TD_MOBILE.platform = "ios")
+npm run sync:ios    # + npx cap sync ios
+npm run open:ios    # + cap open ios   (macOS only)
+```
+
+Details, signing and the iOS-specific differences (Local Network permission, no Back button, haptics) are in
+[`mobile/README.md`](mobile/README.md#ios-build).
+</details>
+
+<details>
 <summary><b>Run your own signaling server</b></summary>
 
 ```bash
@@ -192,7 +226,7 @@ Caddy gets the HTTPS certificate and coturn runs the TURN relay. `deploy/setup.s
 src/            Desktop app (Electron 45)
   main.js         Screen capture, input, files, windows
   renderer/       The UI; app.js is the place to start reading
-mobile/         Android app (Capacitor 8, same renderer)
+mobile/         Android + iOS apps (Capacitor 8, same renderer)
 server/         Signaling server (Node.js + ws)
 deploy/         Docker Compose: signaling, Caddy, coturn
 scripts/        Release and build helpers
