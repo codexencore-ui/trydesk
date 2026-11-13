@@ -459,10 +459,13 @@ const TEXT_EN = {
   "Jalankan sebagai administrator": "Run as administrator",
   "Layanan Windows (akses tanpa pengawasan)": "Windows service (unattended access)",
   "Dengan layanan, PC ini tetap bisa dikontrol setelah restart dan saat sesi RDP diputus (jendela RDP ditutup), seperti AnyDesk. ID PC ini tidak berubah. Tanpa password akses, setiap koneksi tetap meminta Terima. Versi Setup memasangnya otomatis.": "With the service, this PC stays controllable after a restart and while the RDP session is disconnected (RDP window closed), like AnyDesk. This PC's ID doesn't change. Without an access password, every connection still asks for Accept. The Setup version installs it automatically.",
+  "Catatan: layanan berjalan sebagai SYSTEM, jadi ia memakai encoder video <b>hardware</b>. Bila kartu grafis PC ini tidak punya encoder H.264 hardware (GPU lama), layanan tidak bisa membagikan layar — pakai TryDesk biasa (tanpa layanan) di PC seperti itu.": "Note: the service runs as SYSTEM, so it uses a <b>hardware</b> video encoder. If this PC's graphics card has no hardware H.264 encoder (an old GPU), the service cannot share the screen — on such a PC, use TryDesk normally (without the service).",
   "Pasang layanan": "Install service", "Hapus layanan": "Remove service",
   "Monitor virtual (layar tetap jalan walau monitor mati)": "Virtual monitor (screen keeps working even when the monitor is off)",
   "Bila PC ini tidak punya monitor aktif, layar host berhenti digambar dan remote jadi beku/hitam. Monitor virtual memberi Windows layar maya agar remote tetap jalan — sama seperti TeamViewer. Dipasang otomatis oleh versi Setup.": "When this PC has no active monitor, the host screen stops being drawn and the remote freezes/goes black. A virtual monitor gives Windows a make-believe screen so the remote keeps working — the same way TeamViewer does it. The Setup version installs it automatically.",
   "Pasang monitor virtual": "Install virtual monitor", "Hapus monitor virtual": "Remove virtual monitor",
+  "Perbaiki kehalusan (60 Hz)": "Fix smoothness (60 Hz)",
+  "Gambar terasa patah-patah? Layar virtual masih memakai 30 Hz bawaan. Klik \"Perbaiki kehalusan\".": "Picture feels choppy? The virtual display is still using its 30 Hz default. Click \"Fix smoothness\".",
   "Layanan terpasang. ID PC ini tetap sama.": "Service installed. This PC's ID stays the same.",
   "UAC dibatalkan, password layanan tidak berubah": "UAC cancelled, the service's password didn't change", "Password layanan gagal diubah": "The service's password couldn't be changed",
   "PC ini memakai layanan TryDesk": "This PC uses the TryDesk service",
@@ -644,6 +647,7 @@ const TEXT_EN = {
   "Password salah": "Wrong password", "Remote gagal membagikan layar": "The remote failed to share its screen",
   "Menyimpan ke Unduhan\\TryDesk...": "Saving to Downloads\\TryDesk...", "File tidak bisa disiapkan untuk dikirim": "The file couldn't be prepared for sending",
   "PC tujuan tidak bisa membagikan layar karena TryDesk di sana berjalan sebagai administrator":"The remote PC can't share its screen because TryDesk there runs as administrator",
+  "PC tujuan tidak bisa membagikan layar: kartu grafisnya tidak punya encoder video hardware, dan TryDesk di sana berjalan sebagai layanan (SYSTEM)":"The remote PC can't share its screen: its graphics card has no hardware video encoder, and TryDesk there runs as a Windows service (SYSTEM)",
   "Layar PC ini tidak bisa diambil saat TryDesk berjalan sebagai administrator. Buka TryDesk biasa, atau pasang layanan TryDesk (Pengaturan → Keamanan) agar jendela admin tetap bisa dikontrol.": "This PC's screen can't be captured while TryDesk runs as administrator. Open TryDesk normally, or install the TryDesk service (Settings → Security) so admin windows can still be controlled.",
   "Koneksi gagal, relay TURN tidak terjangkau": "Connection failed, TURN relay unreachable",
   "Koneksi P2P gagal, server belum menyediakan TURN relay": "P2P connection failed, the server has no TURN relay yet",
@@ -2367,6 +2371,7 @@ async function finishAccept(fromId, viaPassword, fromName = "") {
     // A screen that is being replaced right now (RDP window going full screen / reconnecting) can't be captured
     // for a moment: try a few times before telling the viewer "gagal membagikan layar" (rented PC, 2026-11-02).
     let cap = null, lastErr = null;
+    _noHwEncoder = false;   // set again only if this attempt really hits a GPU without an H.264 encoder
     // Service host in a disconnected session (RDP closed): nothing is drawn there; move it to the console first.
     if (config && config.serviceHost) {
       await serviceFollowUserLang();   // a password session skips the Accept dialog: the language comes here then
@@ -2421,6 +2426,15 @@ async function finishAccept(fromId, viaPassword, fromName = "") {
     console.error(err);
     sessLog(sess, "no screen capture: " + (err && err.message));
     const admin = !(config && config.serviceHost) && (await window.electronAPI.isElevated().catch(() => false));
+    // No hardware encoder (helper exit 4) is the reason the service host (SYSTEM) has nothing to fall back on: its
+    // Chromium capture cannot start either, and the DXGI helper needs the GPU to encode. Say that plainly, with the
+    // fix, instead of the generic "failed to share screen" that gives the viewer no idea what to do.
+    if (_noHwEncoder) {
+      sessLog(sess, "capture failed: no hardware H.264 encoder on this PC's GPU");
+      showToast(HOST_NO_ENCODER_HERE);
+      sendSignal({ type: "connection-rejected", targetId: fromId, reason: HOST_NO_ENCODER });
+      closeSession(sess, false); return;
+    }
     // Said on this PC too: the person here can fix it (start TryDesk without "Run as administrator").
     if (admin) showToast(HOST_ADMIN_NO_CAPTURE_HERE);
     sendSignal({ type: "connection-rejected", targetId: fromId, reason: admin ? HOST_ADMIN_NO_CAPTURE : "Remote gagal membagikan layar" });
@@ -2707,9 +2721,17 @@ let _helperExitWhy = "";   // the helper's last {"exit":N,"why":"..."} line
 window.electronAPI?.onFastCaptureInfo?.((s) => { try { const j = JSON.parse(s); if (j && j.exit != null) _helperExitWhy = String(j.why || "").slice(0, 80); } catch {} });
 const NATIVE_FATAL = new Set([2, 4, 5]);   // screen not found, no H.264 encoder, D3D / Media Foundation setup: a retry can't help
 const NATIVE_FIRST_FRAME_MS = 8000;
+// The helper's exit 4 is "no hardware H.264 encoder": the GPU cannot encode, so the DXGI path (the only one a
+// SYSTEM service can use) has no way to produce a picture. It is not the same as "something went wrong", and the
+// fix is specific, so it gets its own message instead of the generic one. Set by the helper's {"exit":N,"why":...}
+// line (see _helperExitWhy) and by a failed nativeCaptureStream() start.
+let _noHwEncoder = false;
+window.electronAPI?.onFastCaptureInfo?.((s) => { try { const j = JSON.parse(s); if (j && j.exit === 4) _noHwEncoder = true; } catch {} });
 // To the viewer (a peer text: it must be in TEXT_EN to be shown, see knownPeerText) and to the person at this PC.
 const HOST_ADMIN_NO_CAPTURE = "PC tujuan tidak bisa membagikan layar karena TryDesk di sana berjalan sebagai administrator";
 const HOST_ADMIN_NO_CAPTURE_HERE = "Layar PC ini tidak bisa diambil saat TryDesk berjalan sebagai administrator. Buka TryDesk biasa, atau pasang layanan TryDesk (Pengaturan → Keamanan) agar jendela admin tetap bisa dikontrol.";
+const HOST_NO_ENCODER = "PC tujuan tidak bisa membagikan layar: kartu grafisnya tidak punya encoder video hardware, dan TryDesk di sana berjalan sebagai layanan (SYSTEM)";
+const HOST_NO_ENCODER_HERE = "Layar tidak bisa dibagikan: PC ini tidak punya encoder video hardware (GPU lama/tanpa dukungan H.264) sementara TryDesk berjalan sebagai layanan Windows. Perbaikan: (1) jalankan TryDesk biasa, bukan layanan (Pengaturan → Keamanan → Hapus layanan), atau (2) nyalakan iGPU Intel di BIOS (Quick Sync) / pakai GPU yang mendukung encoder H.264.";
 async function nativeCaptureStream(m) {
   if (!(await fastHostAvailable()) || typeof MediaStreamTrackGenerator === "undefined") throw new Error("native capture unavailable");
   stopNativeCapture();
@@ -2734,6 +2756,7 @@ async function nativeCaptureStream(m) {
       if (nativeCap !== cap) return;
       cap.fails++;
       capLog(`native capture helper exited (${code}${_helperExitWhy ? ": " + _helperExitWhy : ""})`);
+      if (code === 4) _noHwEncoder = true;   // "no hardware H.264 encoder": a retry cannot help, and the fix is specific
       if (cap.gotFrame ? cap.fails >= 5 : (NATIVE_FATAL.has(code) || cap.fails >= 3)) {
         cap.failed = `helper ${code}${_helperExitWhy ? " (" + _helperExitWhy + ")" : ""}`;
         firstFrame(false);
@@ -2781,10 +2804,13 @@ function nativeCaptureFailed(cap) {
   stopNativeCapture();
   if (!sess || sess.role !== "host") return;
   sessLog(sess, "native capture gave up: " + cap.failed);
-  // The service's host only uses the helper for the secure desktop: there the plain reason fits.
+  // The service's host only uses the helper for the secure desktop: there the plain reason fits — unless the
+  // helper stopped because the GPU has no H.264 encoder, which is worth saying outright wherever it happens.
   const svc = !!(config && config.serviceHost);
-  closeSession(sess, true, svc ? "Remote gagal membagikan layar" : HOST_ADMIN_NO_CAPTURE);
-  if (!svc) showToast(HOST_ADMIN_NO_CAPTURE_HERE);
+  const reason = _noHwEncoder ? HOST_NO_ENCODER : svc ? "Remote gagal membagikan layar" : HOST_ADMIN_NO_CAPTURE;
+  closeSession(sess, true, reason);
+  if (_noHwEncoder) showToast(HOST_NO_ENCODER_HERE);
+  else if (!svc) showToast(HOST_ADMIN_NO_CAPTURE_HERE);
 }
 function stopNativeCapture() {
   if (!nativeCap) return;
@@ -6755,15 +6781,29 @@ async function refreshVddUI() {
   let s = null; try { s = await window.electronAPI.displayStatus(); } catch {}
   const st = $("#display-vdd-state");
   const installed = !!(s && s.installed);
+  const configured = !!(s && s.settings);
   st.textContent = installed ? "✓ Monitor virtual terpasang" : "Monitor virtual belum terpasang.";
   st.classList.toggle("on", installed);
   $("#btn-vdd-install").classList.toggle("hidden", installed);
   $("#btn-vdd-remove").classList.toggle("hidden", !installed);
+  // Installed but with no config file: the display runs at the driver's 30 Hz default, so the remote stutters.
+  // Offer a one-click fix; also explain it in the note so the state is never a mystery.
+  const rate = $("#display-vdd-rate");
+  const needsFix = installed && !configured;
+  rate.classList.toggle("hidden", !needsFix);
+  if (needsFix) rate.textContent = "Gambar terasa patah-patah? Layar virtual masih memakai 30 Hz bawaan. Klik \"Perbaiki kehalusan\".";
+  $("#btn-vdd-fix").classList.toggle("hidden", !needsFix);
 }
 $("#btn-vdd-install")?.addEventListener("click", async () => {
   showToast("Memasang monitor virtual… setujui prompt UAC.");
   let r; try { r = await window.electronAPI.displayInstall(); } catch { r = { ok: false, error: "gagal" }; }
   showToast(r.ok ? "Monitor virtual terpasang. Remote tetap jalan walau layar mati." : "Gagal memasang monitor virtual: " + (r.error || "tidak diketahui"));
+  await refreshVddUI();
+});
+$("#btn-vdd-fix")?.addEventListener("click", async () => {
+  showToast("Memperbaiki kehalusan (60 Hz)… setujui prompt UAC. Layar akan berkedip sebentar.");
+  let r; try { r = await window.electronAPI.displaySettings(); } catch { r = { ok: false, error: "gagal" }; }
+  showToast(r.ok ? "Selesai. Layar virtual kini 60 Hz — gambar harusnya lebih halus." : "Gagal memperbaiki: " + (r.error || "tidak diketahui"));
   await refreshVddUI();
 });
 $("#btn-vdd-remove")?.addEventListener("click", async () => {

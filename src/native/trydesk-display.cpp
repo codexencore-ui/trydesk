@@ -8,9 +8,11 @@
 //   resources/vdd/driver, and installs it with nefcon (resources/vdd/nefcon, also MIT).
 //
 // WHAT IT DOES
-//   status  — is the virtual display present? Prints JSON to stdout. Never needs admin.
-//   install — trust the driver's catalog certificate (LocalMachine\TrustedPublisher) and install the device
-//             node + driver via nefcon. Idempotent (--no-duplicates). Needs administrator.
+//   status  — is the virtual display present, and does its config file exist? Prints JSON. Never needs admin.
+//   install — trust the driver's catalog certificate (LocalMachine\TrustedPublisher), install the device node +
+//             driver via nefcon, and drop our vdd_settings.xml (60 Hz) into C:\VirtualDisplayDriver so the display
+//             does not sit at the driver's 30 Hz default. Idempotent (--no-duplicates). Needs administrator.
+//   settings— only (re)deploy vdd_settings.xml and restart the device; for fixing a driver installed earlier.
 //   remove  — remove the virtual display device node. Needs administrator.
 //
 //   Every action prints ONE JSON line to stdout, e.g. {"ok":true,"action":"install"} or
@@ -18,12 +20,14 @@
 //   failure. main.js reads that line. All human-readable logging goes to stderr, so stdout stays parseable.
 //
 // USAGE
-//   trydesk-display.exe status  [--dir <resources\vdd>]
-//   trydesk-display.exe install [--dir <resources\vdd>]
-//   trydesk-display.exe remove  [--dir <resources\vdd>]
+//   trydesk-display.exe status   [--dir <resources\vdd>]
+//   trydesk-display.exe install  [--dir <resources\vdd>]
+//   trydesk-display.exe settings [--dir <resources\vdd>]
+//   trydesk-display.exe remove   [--dir <resources\vdd>]
 //   --dir defaults to the folder next to this exe (resources\vdd); main.js passes the packaged path.
 //
-// Exit codes: 0 ok, 1 bad usage, 2 files missing, 3 needs admin, 4 nefcon failed, 5 certificate failed.
+// Exit codes: 0 ok, 1 bad usage, 2 files missing, 3 needs admin, 4 nefcon failed, 5 certificate failed,
+//             6 settings deployment failed.
 #define NOMINMAX
 #define _WIN32_WINNT 0x0A00
 #include <windows.h>
@@ -128,6 +132,7 @@ struct Paths {
   std::string infFile;     // driver\MttVDD.inf
   std::string catFile;     // driver\mttvdd.cat
   std::string nefconW;     // nefcon\nefconw.exe
+  std::string settings;    // driver\vdd_settings.xml
   bool all() { return fileExists(infFile) && fileExists(catFile) && fileExists(nefconW); }
 };
 
@@ -138,8 +143,15 @@ static Paths resolvePaths(const std::string& dirArg) {
   p.infFile = d + "\\driver\\MttVDD.inf";
   p.catFile = d + "\\driver\\mttvdd.cat";
   p.nefconW = d + "\\nefcon\\nefconw.exe";
+  p.settings = d + "\\driver\\vdd_settings.xml";
   return p;
 }
+
+// The driver reads its settings from a FIXED folder, C:\VirtualDisplayDriver (confpath in the driver's
+// source; overridable by the VDDPATH registry key), never from where the INF lives. If that file is absent
+// the driver uses built-in defaults whose refresh rate is 30 Hz, and Desktop Duplication then delivers at
+// most 30 frames a second: the remote looks choppy. So a correct install also drops our settings there.
+static const char* kConfigDir = "C:\\VirtualDisplayDriver";
 
 static std::string quote(const std::string& s) { return "\"" + s + "\""; }
 
@@ -188,6 +200,39 @@ static bool trustCertificate(const Paths& p, std::string& err) {
   return true;
 }
 
+// Copy vdd_settings.xml into the driver's fixed config folder (C:\VirtualDisplayDriver) and point VDDPATH at
+// it, so the driver reads our resolution/refresh list (60 Hz) instead of its 30 Hz built-in defaults. Without
+// this the display refreshes at 30 Hz and the remote looks choppy even though TryDesk asks for 60 fps.
+// Idempotent: an existing file is overwritten only when the content differs, so a re-run does not touch the
+// device. Returns false (with `err`) only on a real failure; a missing bundled file is not fatal.
+static bool deploySettings(const Paths& p, std::string& err) {
+  if (!fileExists(p.settings)) { say("no vdd_settings.xml bundled; leaving the driver defaults"); return true; }
+  std::string ps =
+    "$ErrorActionPreference='Stop';"
+    "$dir='C:\\VirtualDisplayDriver';"
+    "New-Item -ItemType Directory -Force -Path $dir | Out-Null;"
+    "$src=" + quote(p.settings) + ";"
+    "$dst=Join-Path $dir 'vdd_settings.xml';"
+    // Only rewrite (and, below, pause the device) when the content actually changed: a no-op re-run stays instant.
+    "$same=$false;"
+    "if (Test-Path $dst) { $same = ((Get-FileHash $dst).Hash -eq (Get-FileHash $src).Hash) };"
+    "if (-not $same) {"
+      "Copy-Item -LiteralPath $src -Destination $dst -Force;"
+      // The driver loads the XML at start; disabling and re-enabling the device makes it re-read the file.
+      "$dev = Get-PnpDevice -Class Display -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like '*MttVDD*' -and $_.Status -eq 'OK' } | Select-Object -First 1;"
+      "if ($dev) { Disable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false; Start-Sleep -Milliseconds 800; Enable-PnpDevice -InstanceId $dev.InstanceId -Confirm:$false }"
+    "};"
+    // Record the folder so the driver (and future tools) resolve it even if it moves.
+    "New-Item -Path 'HKLM:\\SOFTWARE\\MikeTheTech\\VirtualDisplayDriver' -Force | Out-Null;"
+    "New-ItemProperty -Path 'HKLM:\\SOFTWARE\\MikeTheTech\\VirtualDisplayDriver' -Name 'VDDPATH' -Value $dir -PropertyType String -Force | Out-Null";
+  std::string cmd = "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command " + quote(ps);
+  DWORD code = 1; std::string out;
+  if (!runCapture(cmd, code, out)) { err = "could not start powershell"; return false; }
+  if (code != 0) { err = "vdd_settings.xml deployment failed: " + firstLines(out); return false; }
+  say("vdd_settings.xml deployed to %s", kConfigDir);
+  return true;
+}
+
 static bool installDriver(const Paths& p, std::string& err) {
   // devcon-compatible verb: creates the ROOT device node and installs the INF in one go. --no-duplicates
   // keeps it idempotent (a re-run updates the driver instead of adding a second monitor); it is also what
@@ -225,20 +270,22 @@ int main(int argc, char** argv) {
   Paths p = resolvePaths(dir);
 
   if (g_action == "status") {
-    // Never needs admin and must always answer, even before anything is installed.
+    // Never needs admin and must always answer, even before anything is installed. "settings" tells whether the
+    // driver's config folder already has our file: false means the display is likely stuck at its 30 Hz default.
     bool present = virtualDisplayPresent();
-    fprintf(stdout, "{\"ok\":true,\"action\":\"status\",\"installed\":%s,\"files\":%s}\n",
-            present ? "true" : "false", p.all() ? "true" : "false");
+    bool cfg = fileExists(std::string(kConfigDir) + "\\vdd_settings.xml");
+    fprintf(stdout, "{\"ok\":true,\"action\":\"status\",\"installed\":%s,\"settings\":%s,\"files\":%s}\n",
+            present ? "true" : "false", cfg ? "true" : "false", p.all() ? "true" : "false");
     fflush(stdout);
     return 0;
   }
 
-  if (g_action != "install" && g_action != "remove") {
-    say("usage: trydesk-display.exe status | install | remove [--dir <resources\\vdd>]");
+  if (g_action != "install" && g_action != "remove" && g_action != "settings") {
+    say("usage: trydesk-display.exe status | install | remove | settings [--dir <resources\\vdd>]");
     done(false, 1, "unknown action");
   }
 
-  if (!p.all()) {
+  if (g_action != "settings" && !p.all()) {
     // A missing file is a packaging problem, not a user one: report which one.
     std::string missing = !fileExists(p.infFile) ? p.infFile : !fileExists(p.catFile) ? p.catFile : p.nefconW;
     say("missing file: %s", missing.c_str());
@@ -252,9 +299,20 @@ int main(int argc, char** argv) {
   }
 
   std::string err;
+  // "settings" only fixes the config of an already-installed driver (e.g. one installed before our 60 Hz
+  // file existed): no nefcon, no certificate, just the file and a device restart.
+  if (g_action == "settings") {
+    if (!deploySettings(p, err)) { say("%s", err.c_str()); done(false, 6, err.c_str()); }
+    done(true, 0);
+  }
   if (g_action == "install") {
     if (!trustCertificate(p, err)) { say("%s", err.c_str()); done(false, 5, err.c_str()); }
     if (!installDriver(p, err)) { say("%s", err.c_str()); done(false, 4, err.c_str()); }
+    // Put our resolution/refresh settings where the driver reads them (60 Hz, not its 30 Hz defaults), then
+    // let it re-read them. A failure here is reported but does not undo the install: the display still works,
+    // just at the default rate.
+    std::string cfgErr;
+    if (!deploySettings(p, cfgErr)) say("warning: %s", cfgErr.c_str());
     // Give Windows a moment to bring the new display up, so a caller that follows immediately (start a
     // session) sees it. Not required for correctness.
     Sleep(1500);

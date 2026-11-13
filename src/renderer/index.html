@@ -441,7 +441,9 @@
             <label>Monitor virtual (layar tetap jalan walau monitor mati)</label>
             <div class="setting-note pw-state" id="display-vdd-state"></div>
             <div class="setting-note">Bila PC ini tidak punya monitor aktif, layar host berhenti digambar dan remote jadi beku/hitam. Monitor virtual memberi Windows layar maya agar remote tetap jalan — sama seperti TeamViewer. Dipasang otomatis oleh versi Setup.</div>
+            <div class="setting-note hidden" id="display-vdd-rate"></div>
             <button class="btn-apply" id="btn-vdd-install" style="margin-top:10px">Pasang monitor virtual</button>
+            <button class="btn-apply hidden" id="btn-vdd-fix" style="margin-top:10px">Perbaiki kehalusan (60 Hz)</button>
             <button class="btn-setting-danger hidden" id="btn-vdd-remove" style="margin-top:8px">Hapus monitor virtual</button>
           </div>
         </div>
@@ -453,6 +455,7 @@
             <label>Layanan Windows (akses tanpa pengawasan)</label>
             <div class="setting-note pw-state" id="service-state"></div>
             <div class="setting-note">Dengan layanan, PC ini tetap bisa dikontrol setelah restart dan saat sesi RDP diputus (jendela RDP ditutup), seperti AnyDesk. ID PC ini tidak berubah. Tanpa password akses, setiap koneksi tetap meminta Terima. Versi Setup memasangnya otomatis.</div>
+            <div class="setting-note">Catatan: layanan berjalan sebagai SYSTEM, jadi ia memakai encoder video <b>hardware</b>. Bila kartu grafis PC ini tidak punya encoder H.264 hardware (GPU lama), layanan tidak bisa membagikan layar — pakai TryDesk biasa (tanpa layanan) di PC seperti itu.</div>
             <button class="btn-apply" id="btn-service-install" style="margin-top:10px">Pasang layanan</button>
             <button class="btn-setting-danger hidden" id="btn-service-remove" style="margin-top:8px">Hapus layanan</button>
           </div>

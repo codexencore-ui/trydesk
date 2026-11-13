@@ -1436,6 +1436,7 @@ function runDisplayHelper(action, { elevate = false } = {}) {
 ipcMain.handle("display-available", () => displayAvailable());
 ipcMain.handle("display-status", () => runDisplayHelper("status"));
 ipcMain.handle("display-install", () => runDisplayHelper("install", { elevate: true }));
+ipcMain.handle("display-settings", () => runDisplayHelper("settings", { elevate: true }));
 ipcMain.handle("display-remove", () => runDisplayHelper("remove", { elevate: true }));
 // Viewer end of the UDP link: the host told us its key, port and LAN addresses; our receiver sends hellos there and
 // hands whole frames to the renderer. Returns our own port and addresses so the host can send hellos back too.

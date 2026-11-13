@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   displayAvailable: () => ipcRenderer.invoke("display-available"),
   displayStatus: () => ipcRenderer.invoke("display-status"),
   displayInstall: () => ipcRenderer.invoke("display-install"),
+  displaySettings: () => ipcRenderer.invoke("display-settings"),
   displayRemove: () => ipcRenderer.invoke("display-remove"),
   // One TryDesk with the service (see main.js "One TryDesk"): service host side, then the user's app side.
   svcFrontendAlive: () => ipcRenderer.invoke("svc-frontend-alive"),
